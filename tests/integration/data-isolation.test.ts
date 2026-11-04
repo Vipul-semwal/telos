@@ -1,9 +1,10 @@
-import { describe, it, expect, beforeAll, afterAll } from "vitest";
+﻿import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { db } from "@/infrastructure/database";
 import { user } from "@/modules/auth/schema";
-import { disciplines } from "@/modules/disciplines/schema";
 import { DisciplinesService } from "@/modules/disciplines/service";
 import { ProjectsService } from "@/modules/projects/service";
+import { TasksService } from "@/modules/tasks/service";
+import { BrainDumpService } from "@/modules/brain-dump/service";
 import { CapacityExceededError, NotFoundError } from "@/shared/errors/domain-error";
 import { eq } from "drizzle-orm";
 
@@ -80,5 +81,19 @@ describe("Data Isolation & Domain Constraints Integration Tests", () => {
     // But User B still has capacity to create their own active disciplines independently
     const discB = await DisciplinesService.create(userBId, { title: "Beta First Pursuit" });
     expect(discB.title).toBe("Beta First Pursuit");
+  });
+
+  it("User B cannot access User A's tasks or brain dump items", async () => {
+    // User A creates a brain dump item
+    const itemA = await BrainDumpService.create(userAId, {
+      content: "Alpha proprietary research idea",
+    });
+
+    // User B list must not show User A's item
+    const listB = await BrainDumpService.list(userBId);
+    expect(listB.find((i) => i.id === itemA.id)).toBeUndefined();
+
+    // User B cannot archive User A's brain dump item
+    await expect(BrainDumpService.archive(userBId, itemA.id)).rejects.toThrow(NotFoundError);
   });
 });

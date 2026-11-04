@@ -1,7 +1,8 @@
-import { getServerSession } from "@/infrastructure/authentication/session";
+﻿import { getServerSession } from "@/infrastructure/authentication/session";
 import { TasksService } from "@/modules/tasks/service";
-import { H1, Muted } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/state-views";
 
 export default async function TasksPage() {
   const session = await getServerSession();
@@ -10,21 +11,18 @@ export default async function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-foreground-secondary">
-            MODULE 05 // EXECUTION
-          </span>
-          <H1>TASKS & SUBTASKS</H1>
-          <Muted>Strict hierarchy: Discipline ? Project ? Task ? Subtask. No further nesting.</Muted>
-        </div>
-        <Badge variant="neutral">{taskList.length} TASKS</Badge>
-      </div>
+      <PageHeader
+        moduleCode="MODULE 05 // EXECUTION"
+        title="TASKS & SUBTASKS"
+        description="Discrete work items with estimated duration (ETA). Strict hierarchy invariant: Discipline ? Project ? Task ? Subtask. No nested subtasks."
+        badge={<Badge variant="neutral">{taskList.length} TASKS</Badge>}
+      />
 
-      <div className="border border-dashed border-border p-8 text-center rounded-sm">
-        <p className="font-mono text-xs text-foreground-secondary mb-1">TASK SUBSYSTEM ACTIVE</p>
-        <Muted>Task history event logging and depth constraints ready for feature implementation.</Muted>
-      </div>
+      <EmptyState
+        kicker="EXECUTION // PIPELINE READY"
+        title="TASK SUBSYSTEM FOUNDATION"
+        description="Tasks record estimated durations in integer seconds and track execution sessions. Parent depth validation and task history event logging are operational."
+      />
     </div>
   );
 }

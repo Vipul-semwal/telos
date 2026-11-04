@@ -1,27 +1,25 @@
-import { getServerSession } from "@/infrastructure/authentication/session";
-import { H1, Muted } from "@/components/ui/typography";
+﻿import { getServerSession } from "@/infrastructure/authentication/session";
+import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/state-views";
 
 export default async function ReportingPage() {
   const session = await getServerSession();
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-foreground-secondary">
-            MODULE 08 // INTELLIGENCE
-          </span>
-          <H1>REPORTING & METRICS</H1>
-          <Muted>Derived directly from underlying task sessions. Task ? Project ? Discipline aggregation.</Muted>
-        </div>
-        <Badge variant="neutral">DERIVED ENGINE</Badge>
-      </div>
+      <PageHeader
+        moduleCode="MODULE 08 // INTELLIGENCE"
+        title="REPORTS & ANALYTICS"
+        description="Derived performance and progress telemetry. Time aggregates strictly upward: Task ? Project ? Discipline. Zero duplicated static totals."
+        badge={<Badge variant="neutral">DERIVED ENGINE</Badge>}
+      />
 
-      <div className="border border-dashed border-border p-8 text-center rounded-sm">
-        <p className="font-mono text-xs text-foreground-secondary mb-1">AGGREGATION PIPELINE ACTIVE</p>
-        <Muted>Zero duplicated totals; metrics derived on-demand from verified session history.</Muted>
-      </div>
+      <EmptyState
+        kicker="ANALYTICS // PIPELINE READY"
+        title="EMPIRICAL REPORTING ENGINE"
+        description="Reports are computed on-demand from underlying immutable session records and task completions."
+      />
     </div>
   );
 }

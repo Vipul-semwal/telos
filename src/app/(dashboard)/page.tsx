@@ -1,12 +1,11 @@
-import { getServerSession } from "@/infrastructure/authentication/session";
+﻿import { getServerSession } from "@/infrastructure/authentication/session";
 import { CockpitService } from "@/modules/cockpit/service";
+import { PageHeader } from "@/components/ui/page-header";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { H1, Muted, LabelMono } from "@/components/ui/typography";
+import { Muted } from "@/components/ui/typography";
 import { TimerDisplay } from "@/components/ui/timer-display";
 import { formatSecondsToHuman } from "@/shared/utils/duration";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 
 export default async function CockpitPage() {
   const session = await getServerSession();
@@ -15,27 +14,20 @@ export default async function CockpitPage() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header / Meta bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-border pb-4 gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="w-2 h-2 bg-accent inline-block" />
-            <span className="font-mono text-[11px] uppercase tracking-widest text-foreground-secondary">
-              OPERATIONAL TELEMETRY
-            </span>
+      <PageHeader
+        moduleCode="MODULE 01 // OVERVIEW"
+        title="COCKPIT OVERVIEW"
+        description={`Unified personal intelligence operational telemetry for date: ${overview.date}`}
+        badge={
+          <div className="flex items-center gap-2">
+            <Badge variant="neutral">SYS.STATUS: OPTIMAL</Badge>
+            <Badge variant="accent" className="hidden sm:inline-flex">MODULAR MONOLITH</Badge>
           </div>
-          <H1>COCKPIT OVERVIEW</H1>
-          <Muted>Unified personal intelligence status for date: {overview.date}</Muted>
-        </div>
+        }
+      />
 
-        <div className="flex items-center gap-2">
-          <Badge variant="neutral">SYS.STATUS: OPTIMAL</Badge>
-          <Badge variant="accent">MODULAR MONOLITH</Badge>
-        </div>
-      </div>
-
-      {/* Primary KPI Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Primary KPI Grid ? Mobile 1 col, tablet 2 cols, desktop 4 cols */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Disciplines Limit Card */}
         <Card variant="bordered">
           <CardHeader>
@@ -43,7 +35,7 @@ export default async function CockpitPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="font-mono text-3xl font-semibold tabular-nums text-foreground-primary">
+              <span className="font-mono text-2xl sm:text-3xl font-semibold tabular-nums text-foreground-primary">
                 {overview.disciplines.activeCount}
               </span>
               <span className="font-mono text-xs text-foreground-secondary">
@@ -69,7 +61,7 @@ export default async function CockpitPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="font-mono text-3xl font-semibold tabular-nums text-foreground-primary">
+              <span className="font-mono text-2xl sm:text-3xl font-semibold tabular-nums text-foreground-primary">
                 {formatSecondsToHuman(overview.dailyPlan.capacity.allocatedSeconds)}
               </span>
               <span className="font-mono text-xs text-foreground-secondary">
@@ -85,7 +77,7 @@ export default async function CockpitPage() {
               />
             </div>
             <Muted className="text-[11px]">
-              Remaining capacity: {formatSecondsToHuman(overview.dailyPlan.capacity.remainingSeconds)}
+              Remaining: {formatSecondsToHuman(overview.dailyPlan.capacity.remainingSeconds)}
             </Muted>
           </CardContent>
         </Card>
@@ -131,7 +123,7 @@ export default async function CockpitPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-baseline justify-between">
-              <span className="font-mono text-3xl font-semibold tabular-nums text-foreground-primary">
+              <span className="font-mono text-2xl sm:text-3xl font-semibold tabular-nums text-foreground-primary">
                 {overview.inboxCount}
               </span>
               <span className="font-mono text-xs text-foreground-secondary">UNCLASSIFIED</span>
@@ -142,38 +134,38 @@ export default async function CockpitPage() {
       </div>
 
       {/* Module Overview Section */}
-      <div className="border border-border p-6 rounded-sm bg-background-primary space-y-4">
-        <div className="flex items-center justify-between border-b border-border pb-3">
+      <div className="border border-border p-4 sm:p-6 rounded-sm bg-background-primary space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-border pb-3 gap-2">
           <div>
             <h2 className="font-mono text-xs uppercase tracking-wider font-semibold text-foreground-primary">
               SYSTEM FOUNDATION & ARCHITECTURAL READINESS
             </h2>
-            <Muted>
+            <Muted className="text-xs">
               The core modular monolith foundation, database schemas, and rule boundaries are established.
             </Muted>
           </div>
-          <Badge variant="success">FOUNDATION READY</Badge>
+          <Badge variant="success" className="self-start sm:self-center">FOUNDATION READY</Badge>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs font-mono">
-          <div className="border border-border p-3 space-y-1 bg-background-secondary/30">
-            <span className="text-foreground-secondary block">01 // HIERARCHY RULE</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-xs font-mono">
+          <div className="border border-border p-3 space-y-1 bg-background-secondary/30 rounded-sm">
+            <span className="text-foreground-secondary block text-[10px]">01 // HIERARCHY RULE</span>
             <span className="text-foreground-primary font-medium block">
               Discipline ? Project ? Task ? Subtask
             </span>
-            <Muted className="text-[10px]">No arbitrary nesting permitted.</Muted>
+            <Muted className="text-[10px]">Strict hierarchy constraint (no deep nesting).</Muted>
           </div>
 
-          <div className="border border-border p-3 space-y-1 bg-background-secondary/30">
-            <span className="text-foreground-secondary block">02 // DATA OWNERSHIP</span>
+          <div className="border border-border p-3 space-y-1 bg-background-secondary/30 rounded-sm">
+            <span className="text-foreground-secondary block text-[10px]">02 // DATA OWNERSHIP</span>
             <span className="text-foreground-primary font-medium block">
-              Multi-tenant Isolated
+              Multi-Tenant Isolated
             </span>
             <Muted className="text-[10px]">Every query derives identity from authenticated session.</Muted>
           </div>
 
-          <div className="border border-border p-3 space-y-1 bg-background-secondary/30">
-            <span className="text-foreground-secondary block">03 // AI INDEPENDENCE</span>
+          <div className="border border-border p-3 space-y-1 bg-background-secondary/30 rounded-sm">
+            <span className="text-foreground-secondary block text-[10px]">03 // AI INDEPENDENCE</span>
             <span className="text-foreground-primary font-medium block">
               Deterministic Core
             </span>

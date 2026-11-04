@@ -1,8 +1,9 @@
-import { getServerSession } from "@/infrastructure/authentication/session";
+﻿import { getServerSession } from "@/infrastructure/authentication/session";
 import { DisciplinesService, MAX_ACTIVE_DISCIPLINES } from "@/modules/disciplines/service";
-import { H1, Muted } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/state-views";
 
 export default async function DisciplinesPage() {
   const session = await getServerSession();
@@ -12,41 +13,44 @@ export default async function DisciplinesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-foreground-secondary">
-            MODULE 03 // PURSUITS
-          </span>
-          <H1>DISCIPLINES</H1>
-          <Muted>Areas of sustained pursuit. Maximum {MAX_ACTIVE_DISCIPLINES} active disciplines per user.</Muted>
-        </div>
-        <Badge variant={activeCount >= MAX_ACTIVE_DISCIPLINES ? "warning" : "neutral"}>
-          {activeCount} / {MAX_ACTIVE_DISCIPLINES} ACTIVE
-        </Badge>
-      </div>
+      <PageHeader
+        moduleCode="MODULE 03 // PURSUITS"
+        title="DISCIPLINES"
+        description={`Sustained areas of core pursuit. Strict domain invariant: maximum ${MAX_ACTIVE_DISCIPLINES} active disciplines per user.`}
+        badge={
+          <Badge variant={activeCount >= MAX_ACTIVE_DISCIPLINES ? "warning" : "neutral"}>
+            {activeCount} / {MAX_ACTIVE_DISCIPLINES} ACTIVE
+          </Badge>
+        }
+      />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {disciplinesList.length === 0 ? (
-          <div className="col-span-full border border-dashed border-border p-8 text-center rounded-sm">
-            <p className="font-mono text-xs text-foreground-secondary mb-1">NO ACTIVE DISCIPLINES</p>
-            <Muted>Discipline management module foundation is active and ready for entries.</Muted>
-          </div>
-        ) : (
-          disciplinesList.map((d) => (
+      {disciplinesList.length === 0 ? (
+        <EmptyState
+          kicker="DISCIPLINES // STANDBY"
+          title="NO DISCIPLINES CONFIGURED"
+          description="Disciplines represent areas of sustained pursuit (e.g. Systems Engineering, Physical Optimization). Up to 3 active pursuits may be defined."
+        />
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          {disciplinesList.map((d) => (
             <Card key={d.id} variant="bordered">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle>{d.title}</CardTitle>
-                  <Badge variant={d.status === "active" ? "accent" : "neutral"}>{d.status}</Badge>
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="truncate">{d.title}</CardTitle>
+                  <Badge variant={d.status === "active" ? "accent" : "neutral"} className="shrink-0">
+                    {d.status}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-foreground-secondary">{d.description || "No description provided."}</p>
+                <p className="text-xs text-foreground-secondary line-clamp-3">
+                  {d.description || "No description provided."}
+                </p>
               </CardContent>
             </Card>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

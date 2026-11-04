@@ -1,7 +1,8 @@
-import { getServerSession } from "@/infrastructure/authentication/session";
+﻿import { getServerSession } from "@/infrastructure/authentication/session";
 import { TimeTrackingService } from "@/modules/time-tracking/service";
-import { H1, Muted } from "@/components/ui/typography";
+import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/state-views";
 
 export default async function TimeTrackingPage() {
   const session = await getServerSession();
@@ -10,23 +11,22 @@ export default async function TimeTrackingPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between border-b border-border pb-4">
-        <div>
-          <span className="font-mono text-[11px] uppercase tracking-widest text-foreground-secondary">
-            MODULE 07 // RECORDING
-          </span>
-          <H1>TIME TRACKING</H1>
-          <Muted>Strict rule: Exactly one active timer per user. Stop pauses recording without completing the task.</Muted>
-        </div>
-        <Badge variant={activeTimer ? "accent" : "neutral"}>
-          {activeTimer ? "ACTIVE SESSION" : "IDLE"}
-        </Badge>
-      </div>
+      <PageHeader
+        moduleCode="MODULE 07 // RECORDING"
+        title="TIME TRACKING"
+        description="Stopwatch tracking at task level. Strict domain invariant: exactly one active timer per user. Stopping a timer pauses recording without completing the task."
+        badge={
+          <Badge variant={activeTimer ? "accent" : "neutral"}>
+            {activeTimer ? "ACTIVE SESSION" : "IDLE"}
+          </Badge>
+        }
+      />
 
-      <div className="border border-dashed border-border p-8 text-center rounded-sm">
-        <p className="font-mono text-xs text-foreground-secondary mb-1">TIME TRACKING ENGINE READY</p>
-        <Muted>Sessions logged in integer seconds, auditable corrections supported, ETA tracking ready.</Muted>
-      </div>
+      <EmptyState
+        kicker="TIME ENGINE // STANDBY"
+        title="TIME RECORDING SUBSYSTEM"
+        description="Discrete work intervals are logged in integer seconds. Actual task duration is computed dynamically as the sum of its sessions."
+      />
     </div>
   );
 }
