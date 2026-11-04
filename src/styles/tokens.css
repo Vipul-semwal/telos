@@ -1,0 +1,53 @@
+:root {
+  /* Telos Design Tokens ? Light Theme (Default) */
+  /* Philosophy: Braun / Dieter Rams functional restraint + Nothing precision */
+  --bg-primary: #F2F1ED;
+  --bg-secondary: #E9E8E3;
+  --bg-tertiary: #DFDDD6;
+  
+  --text-primary: #111111;
+  --text-secondary: #777777;
+  --text-muted: #999999;
+  
+  --border: #D6D4CD;
+  --border-strong: #B8B5AA;
+  
+  --accent: #D9342B;
+  --accent-hover: #BE2820;
+  
+  --status-success: #1E6B38;
+  --status-warning: #9A6200;
+  --status-error: #D9342B;
+  --status-info: #23588F;
+  
+  --eta-green: #1E6B38;
+  --eta-red: #D9342B;
+
+  --font-geist-sans: "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.dark {
+  /* Telos Design Tokens ? Dark Theme */
+  --bg-primary: #111111;
+  --bg-secondary: #202020;
+  --bg-tertiary: #2A2A2A;
+  
+  --text-primary: #F2F1ED;
+  --text-secondary: #A0A09B;
+  --text-muted: #666663;
+  
+  --border: #2D2D2D;
+  --border-strong: #404040;
+  
+  --accent: #D9342B;
+  --accent-hover: #E34840;
+  
+  --status-success: #2E7D32;
+  --status-warning: #C77700;
+  --status-error: #D9342B;
+  --status-info: #3B82F6;
+  
+  --eta-green: #2E7D32;
+  --eta-red: #D9342B;
+}
