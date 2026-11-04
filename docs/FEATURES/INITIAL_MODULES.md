@@ -6,9 +6,22 @@
 - **Statuses:** `active`, `archived`.
 
 ## 2. Projects (`src/modules/projects`)
-- **Domain Entity:** `projects` table.
-- **Rule:** Maximum 3 active projects per discipline.
-- **Statuses:** `active`, `completed`, `archived`.
+- **Domain Entity:** `projects` table (`id`, `user_id`, `discipline_id`, `title`, `description`, `desired_outcome`, `status`, `created_at`, `updated_at`).
+- **Capacity Constraint:** Maximum 3 **active** projects per Discipline. The 4th active project is rejected with `CapacityExceededError`.
+- **Status Lifecycle:**
+  - `active`: Consumes 1 slot of the 3-active project limit.
+  - `paused`: Temporary hold, frees active slot without altering child tasks.
+  - `completed`: Successfully delivered, frees active slot, preserves full task & session history.
+  - `archived`: Decommissioned / vaulted, frees active slot, preserves all records and tasks.
+- **Restoration Rules:** Restoring an archived project checks capacity; if 3 active projects already exist, user is prompted to restore as paused or make an existing project inactive first.
+- **Project Structure & Sections:**
+  - Overview (summary, outcome, discipline context, progress)
+  - Tasks (relationship foundation to child tasks)
+  - Warehouse (future placeholder)
+  - Resolution Engine (future placeholder)
+  - Reports (future placeholder)
+  - Knowledge (future placeholder)
+  - Decisions (future placeholder)
 
 ## 3. Tasks & Subtasks (`src/modules/tasks`)
 - **Domain Entity:** `tasks` table with self-referencing `parentTaskId`.

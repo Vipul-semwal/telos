@@ -15,6 +15,13 @@
       "when": 1793787630613,
       "tag": "0001_glossy_stardust",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793809931808,
+      "tag": "0002_unusual_mandroid",
+      "breakpoints": true
     }
   ]
 }

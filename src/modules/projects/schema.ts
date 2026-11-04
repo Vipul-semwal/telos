@@ -14,11 +14,13 @@ export const projects = pgTable(
       .references(() => disciplines.id, { onDelete: "cascade" }),
     title: varchar("title", { length: 255 }).notNull(),
     description: text("description"),
-    status: varchar("status", { length: 20 }).notNull().default("active"), // active | completed | archived
+    desiredOutcome: text("desired_outcome"),
+    status: varchar("status", { length: 20 }).notNull().default("active"), // active | paused | completed | archived
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("projects_user_discipline_status_idx").on(table.userId, table.disciplineId, table.status),
+    index("projects_user_idx").on(table.userId),
   ],
 );
