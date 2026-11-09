@@ -15,6 +15,22 @@ Telos is built as a **Modular Monolith**:
   7. `time-tracking`
   8. `reporting`
   9. `cockpit`
+  10. `task-yard`
+  11. `notifications`
+
+## 3. Shared Notification Architecture
+
+`notifications` owns the reusable scheduling engine. Sources such as standalone
+Notify records and Task Yard recall cards create schedules through the same
+service. The engine generates idempotent occurrences and delegates presentation
+to a destination adapter; Cockpit is the only enabled destination.
+
+```text
+Notification source → schedule → occurrence → delivery → destination
+```
+
+Permanent source objects are never recreated when they become due. Flashcard
+reviews are stored separately from occurrence delivery/read state.
 
 ## 2. Layered Separation
 

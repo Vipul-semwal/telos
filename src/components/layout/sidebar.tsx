@@ -3,17 +3,29 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  Brain,
+  Bell,
+  CalendarDots,
+  ChartLine,
+  CheckSquare,
+  Compass,
+  FolderSimple,
+  SquaresFour,
+  Timer,
+} from "@phosphor-icons/react";
 import { cn } from "@/shared/utils/cn";
 
 export const navigationItems = [
-  { href: "/", label: "COCKPIT", code: "01" },
-  { href: "/daily-planning", label: "TODAY'S PLAN", code: "02" },
-  { href: "/disciplines", label: "DISCIPLINES", code: "03" },
-  { href: "/projects", label: "PROJECTS", code: "04" },
-  { href: "/tasks", label: "TASKS & SUBTASKS", code: "05" },
-  { href: "/brain-dump", label: "BRAIN DUMP", code: "06" },
-  { href: "/time-tracking", label: "TIME TRACKING", code: "07" },
-  { href: "/reporting", label: "REPORTS", code: "08" },
+  { href: "/", label: "Cockpit", icon: SquaresFour },
+  { href: "/daily-planning", label: "Today's plan", icon: CalendarDots },
+  { href: "/disciplines", label: "Disciplines", icon: Compass },
+  { href: "/projects", label: "Projects", icon: FolderSimple },
+  { href: "/tasks", label: "Tasks", icon: CheckSquare },
+  { href: "/brain-dump", label: "Brain dump", icon: Brain },
+  { href: "/notify", label: "Notify", icon: Bell },
+  { href: "/time-tracking", label: "Time tracking", icon: Timer },
+  { href: "/reporting", label: "Reports", icon: ChartLine },
 ];
 
 interface SidebarProps {
@@ -27,45 +39,59 @@ export function Sidebar({ onNavigate, className }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "w-64 md:w-56 border-r border-border bg-background-primary h-full p-3 flex flex-col justify-between shrink-0 select-none",
+        "glass-chrome flex h-full w-60 shrink-0 select-none flex-col justify-between rounded-3xl p-3",
         className,
       )}
     >
       <div className="flex flex-col gap-1">
-        <div className="px-2 py-1.5 mb-2">
-          <span className="text-[10px] font-mono uppercase tracking-widest text-foreground-muted">
-            SYSTEM MODULES
+        <div className="px-3 pb-2 pt-1.5">
+          <span className="font-mono text-micro uppercase tracking-[0.14em] text-foreground-muted">
+            Workspace
           </span>
         </div>
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-0.5">
           {navigationItems.map((item) => {
             const isActive =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 onClick={onNavigate}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
-                  "flex items-center justify-between px-3 py-2 text-xs font-mono transition-colors rounded-sm",
+                  "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-small font-medium transition-all duration-150",
                   isActive
-                    ? "bg-background-secondary text-foreground-primary font-medium border-l-2 border-accent pl-2.5"
-                    : "text-foreground-secondary hover:text-foreground-primary hover:bg-background-secondary/50",
+                    ? "bg-surface-elevated/80 text-foreground-primary shadow-control"
+                    : "text-foreground-secondary hover:bg-surface-hover/50 hover:text-foreground-primary",
                 )}
               >
-                <span>{item.label}</span>
-                <span className="text-[10px] text-foreground-muted">{item.code}</span>
+                <Icon
+                  size={18}
+                  weight={isActive ? "fill" : "regular"}
+                  className={cn(
+                    "shrink-0 transition-colors",
+                    isActive ? "text-accent" : "text-foreground-muted group-hover:text-foreground-secondary",
+                  )}
+                />
+                <span className="flex-1 truncate">{item.label}</span>
+                {isActive && <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" />}
               </Link>
             );
           })}
         </nav>
       </div>
 
-      <div className="p-2 border-t border-border">
-        <div className="flex items-center justify-between text-[10px] font-mono text-foreground-muted">
-          <span>SYS.VER</span>
-          <span>v0.1.0-ALPHA</span>
+      <div className="rounded-2xl bg-surface-hover/40 p-3">
+        <div className="flex items-center gap-2 text-caption text-foreground-muted">
+          <span className="h-1.5 w-1.5 rounded-full bg-status-success" />
+          <span>Local workspace</span>
+        </div>
+        <div className="mt-3 flex items-center justify-between font-mono text-micro text-foreground-quaternary">
+          <span>TELOS</span>
+          <span>v0.1.0</span>
         </div>
       </div>
     </aside>

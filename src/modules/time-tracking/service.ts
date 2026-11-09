@@ -1,7 +1,7 @@
 import { db } from "@/infrastructure/database";
 import { timeSessions } from "./schema";
 import { tasks, taskHistory } from "../tasks/schema";
-import { eq, and, isNull, sum, count } from "drizzle-orm";
+import { eq, and, isNull, isNotNull, sum, count, desc } from "drizzle-orm";
 import { ConflictError, NotFoundError } from "@/shared/errors/domain-error";
 import { calculateEtaStatus } from "@/shared/utils/duration";
 import type { StartTimerInput, ManualSessionInput } from "./validation";
@@ -23,7 +23,65 @@ export class TimeTrackingService {
       .innerJoin(tasks, eq(timeSessions.taskId, tasks.id))
       .where(and(eq(timeSessions.userId, userId), isNull(timeSessions.endTime)));
 
-    return active ?? null;
+    if (!active) return null;
+
+    const [recorded] = await db
+      .select({
+        total: sum(timeSessions.durationSeconds),
+      })
+      .from(timeSessions)
+      .where(
+        and(
+          eq(timeSessions.userId, userId),
+          eq(timeSessions.taskId, active.taskId),
+        ),
+      );
+
+    return {
+      ...active,
+      totalRecordedSeconds: Number(recorded?.total ?? 0),
+    };
+  }
+
+  /**
+   * List recent completed/recorded sessions for a user with task context.
+   */
+  static async listRecentSessions(userId: string, limit = 25) {
+    return db
+      .select({
+        id: timeSessions.id,
+        taskId: timeSessions.taskId,
+        taskTitle: tasks.title,
+        taskEstimatedSeconds: tasks.estimatedDurationSeconds,
+        startTime: timeSessions.startTime,
+        endTime: timeSessions.endTime,
+        durationSeconds: timeSessions.durationSeconds,
+        notes: timeSessions.notes,
+        isManualCorrection: timeSessions.isManualCorrection,
+      })
+      .from(timeSessions)
+      .innerJoin(tasks, eq(timeSessions.taskId, tasks.id))
+      .where(and(eq(timeSessions.userId, userId), isNotNull(timeSessions.endTime)))
+      .orderBy(desc(timeSessions.startTime))
+      .limit(limit);
+  }
+
+  /**
+   * Aggregate total recorded seconds and session count for a user.
+   */
+  static async getTotalRecorded(userId: string) {
+    const result = await db
+      .select({
+        totalDuration: sum(timeSessions.durationSeconds),
+        sessionCount: count(),
+      })
+      .from(timeSessions)
+      .where(eq(timeSessions.userId, userId));
+
+    return {
+      totalDurationSeconds: Number(result[0]?.totalDuration ?? 0),
+      sessionCount: Number(result[0]?.sessionCount ?? 0),
+    };
   }
 
   /**

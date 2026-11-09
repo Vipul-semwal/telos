@@ -1,15 +1,22 @@
-﻿"use client";
+"use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  CalendarBlank,
+  CheckSquare,
+  Clock,
+  PencilSimple,
+} from "@phosphor-icons/react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/state-views";
+import { Card } from "@/components/ui/card";
 import { EditProjectDialog } from "@/modules/projects/components/edit-project-dialog";
-import { formatSecondsToHuman, formatSecondsToClock } from "@/shared/utils/duration";
+import { TaskList } from "@/modules/tasks/components/task-list";
+import { formatSecondsToHuman } from "@/shared/utils/duration";
+import { cn } from "@/shared/utils/cn";
 import type { Project, ProjectStatus } from "@/modules/projects/domain/types";
 
 interface TaskSummary {
@@ -31,23 +38,44 @@ interface ProjectDetailViewProps {
     totalDurationSeconds: number;
   };
   disciplineActiveCount: number;
+  report: {
+    taskCount: number;
+    completedTaskCount: number;
+    totalDurationSeconds: number;
+    totalEstimatedSeconds: number;
+    varianceSeconds: number;
+    sessionCount: number;
+  } | null;
+  initialTab?: TabType;
 }
 
 type TabType =
   | "overview"
   | "tasks"
-  | "warehouse"
-  | "resolution"
   | "reports"
-  | "knowledge"
-  | "decisions";
+
+const statusBadgeVariant: Record<ProjectStatus, "accent" | "neutral" | "success" | "warning"> = {
+  active: "accent",
+  paused: "warning",
+  completed: "success",
+  archived: "neutral",
+};
+
+const statusLabels: Record<ProjectStatus, string> = {
+  active: "Active",
+  paused: "Paused",
+  completed: "Completed",
+  archived: "Archived",
+};
 
 export function ProjectDetailView({
   project,
   disciplineActiveCount,
+  report,
+  initialTab = "overview",
 }: ProjectDetailViewProps) {
   const router = useRouter();
-  const [activeTab, setActiveTab] = React.useState<TabType>("overview");
+  const [activeTab, setActiveTab] = React.useState<TabType>(initialTab);
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [actionError, setActionError] = React.useState<string | null>(null);
   const [isActionLoading, setIsActionLoading] = React.useState(false);
@@ -79,61 +107,57 @@ export function ProjectDetailView({
     }
   };
 
-  const statusBadgeVariant: Record<ProjectStatus, "accent" | "neutral" | "success" | "warning"> = {
-    active: "accent",
-    paused: "warning",
-    completed: "success",
-    archived: "neutral",
-  };
-
-  const tabs: { id: TabType; label: string; code: string; isPlaceholder?: boolean }[] = [
-    { id: "overview", label: "OVERVIEW", code: "01" },
-    { id: "tasks", label: `TASKS (${project.taskCount})`, code: "02" },
-    { id: "warehouse", label: "WAREHOUSE", code: "03", isPlaceholder: true },
-    { id: "resolution", label: "RESOLUTION", code: "04", isPlaceholder: true },
-    { id: "reports", label: "REPORTS", code: "05", isPlaceholder: true },
-    { id: "knowledge", label: "KNOWLEDGE", code: "06", isPlaceholder: true },
-    { id: "decisions", label: "DECISIONS", code: "07", isPlaceholder: true },
+  const tabs: { id: TabType; label: string }[] = [
+    { id: "overview", label: "Overview" },
+    { id: "tasks", label: `Tasks (${project.taskCount})` },
+    { id: "reports", label: "Reports" },
   ];
 
+  const completionPct =
+    project.taskCount > 0 ? (project.completedTaskCount / project.taskCount) * 100 : 0;
+
   return (
-    <div className="space-y-6">
-      {/* Breadcrumb path */}
-      <div className="flex items-center gap-2 text-xs font-mono text-foreground-secondary border-b border-border pb-2.5">
-        <Link href="/disciplines" className="hover:text-foreground-primary underline">
-          DISCIPLINES
+    <div className="space-y-7">
+      <div className="flex flex-wrap items-center gap-1.5 text-caption text-foreground-muted">
+        <Link href="/disciplines" className="transition-colors hover:text-foreground-primary">
+          Disciplines
         </Link>
-        <span>/</span>
-        <span className="text-foreground-primary uppercase font-medium">
-          {project.disciplineTitle}
-        </span>
-        <span>/</span>
-        <Link href="/projects" className="hover:text-foreground-primary underline">
-          PROJECTS
+        <span className="text-foreground-quaternary">/</span>
+        <span className="font-medium text-foreground-secondary">{project.disciplineTitle}</span>
+        <span className="text-foreground-quaternary">/</span>
+        <Link href="/projects" className="transition-colors hover:text-foreground-primary">
+          Projects
         </Link>
-        <span>/</span>
-        <span className="text-foreground-muted truncate max-w-[200px]">{project.title}</span>
+        <span className="text-foreground-quaternary">/</span>
+        <span className="max-w-52 truncate text-foreground-secondary">{project.title}</span>
       </div>
 
       {actionError && (
-        <div className="p-3 bg-status-error/10 border border-status-error/30 text-status-error text-xs font-mono rounded-sm flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-status-error/[0.08] px-4 py-3 text-small text-status-error shadow-[inset_0_0_0_1px_rgb(var(--status-error)/0.16)]">
           <span>{actionError}</span>
-          <button onClick={() => setActionError(null)} className="underline text-status-error ml-2">
-            DISMISS
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="shrink-0 text-caption font-medium underline underline-offset-2"
+          >
+            Dismiss
           </button>
         </div>
       )}
 
-      {/* Page Header */}
       <PageHeader
-        moduleCode={`DISCIPLINE // ${project.disciplineTitle}`}
+        moduleCode={project.disciplineTitle}
         title={project.title}
-        description={project.desiredOutcome ? `Outcome: ${project.desiredOutcome}` : undefined}
+        description={
+          project.desiredOutcome ? `Outcome: ${project.desiredOutcome}` : undefined
+        }
         badge={
-          <div className="flex items-center gap-2">
-            <Badge variant={statusBadgeVariant[project.status]}>{project.status}</Badge>
-            <span className="text-[11px] font-mono text-foreground-secondary">
-              Discipline: {disciplineActiveCount}/3 active
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant={statusBadgeVariant[project.status]}>
+              {statusLabels[project.status]}
+            </Badge>
+            <span className="font-mono text-caption text-foreground-muted">
+              {disciplineActiveCount}/3 active
             </span>
           </div>
         }
@@ -145,7 +169,8 @@ export function ProjectDetailView({
               onClick={() => setIsEditOpen(true)}
               disabled={isActionLoading}
             >
-              EDIT
+              <PencilSimple size={14} />
+              Edit
             </Button>
 
             {project.status === "active" && (
@@ -155,7 +180,7 @@ export function ProjectDetailView({
                 onClick={() => handleStatusTransition("paused")}
                 disabled={isActionLoading}
               >
-                PAUSE
+                Pause
               </Button>
             )}
 
@@ -166,7 +191,7 @@ export function ProjectDetailView({
                 onClick={() => handleStatusTransition("active")}
                 disabled={isActionLoading}
               >
-                RESUME
+                Resume
               </Button>
             )}
 
@@ -178,7 +203,7 @@ export function ProjectDetailView({
                 disabled={isActionLoading}
                 className="text-status-success"
               >
-                COMPLETE
+                Complete
               </Button>
             )}
 
@@ -189,17 +214,17 @@ export function ProjectDetailView({
                 onClick={() => handleStatusTransition("archived")}
                 disabled={isActionLoading}
               >
-                ARCHIVE
+                Archive
               </Button>
             ) : (
-              <div className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <Button
                   variant="primary"
                   size="sm"
                   onClick={() => handleStatusTransition("active")}
                   disabled={isActionLoading}
                 >
-                  RESTORE AS ACTIVE
+                  Restore as active
                 </Button>
                 <Button
                   variant="secondary"
@@ -207,7 +232,7 @@ export function ProjectDetailView({
                   onClick={() => handleStatusTransition("paused")}
                   disabled={isActionLoading}
                 >
-                  RESTORE AS PAUSED
+                  Restore as paused
                 </Button>
               </div>
             )}
@@ -215,116 +240,108 @@ export function ProjectDetailView({
         }
       />
 
-      {/* Tab Navigation (Dieter Rams technical tabs) */}
-      <div className="border-b border-border flex items-center gap-1 overflow-x-auto scrollbar-none">
+      <div className="glass-thin flex items-center gap-0.5 overflow-x-auto rounded-xl p-1">
         {tabs.map((tab) => (
           <button
             key={tab.id}
+            type="button"
             onClick={() => setActiveTab(tab.id)}
-            className={`px-3 py-2 text-xs font-mono transition-colors shrink-0 flex items-center gap-1.5 border-b-2 -mb-px rounded-t-sm ${
+            className={cn(
+              "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-small font-medium transition-all duration-150",
               activeTab === tab.id
-                ? "border-accent text-foreground-primary font-medium bg-background-secondary/30"
-                : "border-transparent text-foreground-secondary hover:text-foreground-primary hover:bg-background-secondary/20"
-            }`}
-          >
-            <span className="text-[10px] text-foreground-muted">{tab.code}</span>
-            <span>{tab.label}</span>
-            {tab.isPlaceholder && (
-              <span className="text-[9px] uppercase tracking-widest text-foreground-muted bg-background-secondary px-1 py-0.2 rounded-none">
-                FUTURE
-              </span>
+                ? "bg-surface-elevated text-foreground-primary shadow-control"
+                : "text-foreground-secondary hover:text-foreground-primary",
             )}
+          >
+            {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content Rendering */}
       {activeTab === "overview" && (
-        <div className="space-y-6">
-          {/* Key Metrics Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Card variant="bordered">
-              <CardHeader>
-                <CardTitle>TASK EXECUTION</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <div className="flex items-baseline justify-between">
-                  <span className="font-mono text-2xl font-semibold tabular-nums text-foreground-primary">
+        <div className="space-y-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Card variant="glass" className="space-y-3">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-accent/10 text-accent">
+                <CheckSquare size={16} />
+              </span>
+              <div className="space-y-2">
+                <p className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                  Task execution
+                </p>
+                <div className="flex items-baseline gap-2">
+                  <span className="font-mono text-title font-semibold tabular-nums text-foreground-primary">
                     {project.completedTaskCount} / {project.taskCount}
                   </span>
-                  <span className="font-mono text-xs text-foreground-secondary">
-                    COMPLETED
-                  </span>
+                  <span className="text-caption text-foreground-muted">completed</span>
                 </div>
-                <div className="w-full bg-background-secondary h-1.5 rounded-none overflow-hidden mt-2">
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-hover">
                   <div
-                    className="bg-accent h-full transition-all"
-                    style={{
-                      width: `${
-                        project.taskCount > 0
-                          ? (project.completedTaskCount / project.taskCount) * 100
-                          : 0
-                      }%`,
-                    }}
+                    className="h-full rounded-full bg-accent transition-all duration-500"
+                    style={{ width: `${Math.min(100, completionPct)}%` }}
                   />
                 </div>
-              </CardContent>
+              </div>
             </Card>
 
-            <Card variant="bordered">
-              <CardHeader>
-                <CardTitle>RECORDED DURATION</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1">
-                <span className="font-mono text-2xl font-semibold tabular-nums text-foreground-primary">
+            <Card variant="glass" className="space-y-3">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-status-success/10 text-status-success">
+                <Clock size={16} />
+              </span>
+              <div className="space-y-0.5">
+                <p className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                  Recorded duration
+                </p>
+                <span className="block font-mono text-title font-semibold tabular-nums text-foreground-primary">
                   {formatSecondsToHuman(project.totalDurationSeconds)}
                 </span>
-                <p className="text-[11px] font-mono text-foreground-secondary">
+                <p className="text-caption text-foreground-muted">
                   Summed dynamically from task sessions.
                 </p>
-              </CardContent>
+              </div>
             </Card>
 
-            <Card variant="bordered">
-              <CardHeader>
-                <CardTitle>INITIATIVE TIMELINE</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-1.5 text-xs font-mono">
-                <div className="flex justify-between">
-                  <span className="text-foreground-secondary">CREATED:</span>
-                  <span className="text-foreground-primary">
+            <Card variant="glass" className="space-y-3">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-status-warning/10 text-status-warning">
+                <CalendarBlank size={16} />
+              </span>
+              <div className="space-y-1.5">
+                <p className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                  Timeline
+                </p>
+                <div className="flex justify-between text-caption">
+                  <span className="text-foreground-muted">Created</span>
+                  <span className="font-mono text-foreground-primary">
                     {new Date(project.createdAt).toLocaleDateString()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-foreground-secondary">UPDATED:</span>
-                  <span className="text-foreground-primary">
+                <div className="flex justify-between text-caption">
+                  <span className="text-foreground-muted">Updated</span>
+                  <span className="font-mono text-foreground-primary">
                     {new Date(project.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
-              </CardContent>
+              </div>
             </Card>
           </div>
 
-          {/* Desired Outcome Box */}
-          <div className="border border-border p-4 bg-background-primary rounded-sm space-y-2">
+          <div className="surface-panel space-y-2 rounded-2xl p-5">
             <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 bg-accent inline-block" />
-              <span className="text-[11px] font-mono uppercase tracking-widest text-foreground-secondary">
-                DEFINED DESIRED OUTCOME
+              <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+              <span className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                Desired outcome
               </span>
             </div>
-            <p className="text-sm text-foreground-primary leading-relaxed font-sans">
+            <p className="text-body leading-relaxed text-foreground-primary">
               {project.desiredOutcome || "No explicit outcome statement documented."}
             </p>
           </div>
 
-          {/* Description & Scope */}
-          <div className="border border-border p-4 bg-background-primary rounded-sm space-y-2">
-            <span className="text-[11px] font-mono uppercase tracking-widest text-foreground-secondary block">
-              SCOPE & CONTEXT
+          <div className="surface-panel space-y-2 rounded-2xl p-5">
+            <span className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+              Scope & context
             </span>
-            <p className="text-xs text-foreground-secondary leading-relaxed font-sans whitespace-pre-wrap">
+            <p className="whitespace-pre-wrap text-body leading-relaxed text-foreground-secondary">
               {project.description || "No additional scope or notes provided."}
             </p>
           </div>
@@ -333,93 +350,120 @@ export function ProjectDetailView({
 
       {activeTab === "tasks" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-border pb-2">
-            <span className="font-mono text-xs uppercase tracking-wider text-foreground-secondary">
-              TASKS IN PROJECT ({project.tasks.length})
-            </span>
-            <Badge variant="neutral">HIERARCHY: PROJECT ? TASK ? SUBTASK</Badge>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-heading font-semibold text-foreground-primary">
+              Tasks in this project
+            </h2>
+            <Badge variant="neutral">Task → subtask</Badge>
           </div>
-
-          {project.tasks.length === 0 ? (
-            <EmptyState
-              kicker="TASKS // EMPTY"
-              title="NO TASKS ALLOCATED"
-              description="This project has no tasks defined yet. Tasks and subtasks represent actionable work items with estimated duration."
-            />
-          ) : (
-            <div className="border border-border rounded-sm divide-y divide-border overflow-hidden bg-background-primary">
-              {project.tasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="p-3 flex items-center justify-between text-xs font-mono hover:bg-background-secondary/40 transition-colors"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      {task.parentTaskId && (
-                        <span className="text-[10px] text-foreground-muted">? SUBTASK</span>
-                      )}
-                      <span className="font-medium text-foreground-primary uppercase">
-                        {task.title}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-[11px] text-foreground-secondary">
-                      <span>ESTIMATE: {formatSecondsToClock(task.estimatedDurationSeconds)}</span>
-                      <span>PRIORITY: {task.priority.toUpperCase()}</span>
-                    </div>
-                  </div>
-
-                  <Badge variant={task.status === "completed" ? "success" : "neutral"}>
-                    {task.status}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          )}
+          <TaskList projectId={project.id} />
         </div>
       )}
 
-      {/* Clear architectural placeholders for future planned sections */}
-      {activeTab === "warehouse" && (
-        <EmptyState
-          kicker="SECTION 03 // WAREHOUSE (ARCHITECTURAL PLACEHOLDER)"
-          title="PROJECT WAREHOUSE & ARTIFACTS"
-          description="Reserved for project deliverables, assets, generated output, and source materials. Ready for future module integration."
-        />
-      )}
-
-      {activeTab === "resolution" && (
-        <EmptyState
-          kicker="SECTION 04 // RESOLUTION ENGINE (ARCHITECTURAL PLACEHOLDER)"
-          title="RESOLUTION ENGINE"
-          description="Reserved for blockers, friction points, empirical impediments, and solution strategies."
-        />
-      )}
-
       {activeTab === "reports" && (
-        <EmptyState
-          kicker="SECTION 05 // REPORTS (ARCHITECTURAL PLACEHOLDER)"
-          title="PROJECT PERFORMANCE REPORT"
-          description="Will display detailed velocity, ETA variance, session timelines, and duration aggregations derived from underlying task sessions."
-        />
+        <div className="space-y-5">
+          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+            <div>
+              <h2 className="text-heading font-semibold text-foreground-primary">
+                Project performance
+              </h2>
+              <p className="text-small text-foreground-secondary">
+                Derived from this project&apos;s tasks and recorded sessions.
+              </p>
+            </div>
+            <Badge variant={report && report.varianceSeconds > 0 ? "error" : "success"}>
+              {report && report.varianceSeconds > 0
+                ? `${formatSecondsToHuman(report.varianceSeconds)} over estimate`
+                : "Within estimate"}
+            </Badge>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Card variant="surface" className="space-y-1">
+              <span className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                Tracked
+              </span>
+              <span className="block font-mono text-title font-semibold tabular-nums text-foreground-primary">
+                {formatSecondsToHuman(report?.totalDurationSeconds ?? 0)}
+              </span>
+              <span className="text-caption text-foreground-muted">
+                {report?.sessionCount ?? 0} sessions
+              </span>
+            </Card>
+            <Card variant="surface" className="space-y-1">
+              <span className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                Estimated
+              </span>
+              <span className="block font-mono text-title font-semibold tabular-nums text-foreground-primary">
+                {formatSecondsToHuman(report?.totalEstimatedSeconds ?? 0)}
+              </span>
+              <span className="text-caption text-foreground-muted">Across all tasks</span>
+            </Card>
+            <Card variant="surface" className="space-y-1">
+              <span className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                Completion
+              </span>
+              <span className="block font-mono text-title font-semibold tabular-nums text-foreground-primary">
+                {report?.completedTaskCount ?? 0} / {report?.taskCount ?? 0}
+              </span>
+              <span className="text-caption text-foreground-muted">Tasks complete</span>
+            </Card>
+            <Card variant="surface" className="space-y-1">
+              <span className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                Variance
+              </span>
+              <span
+                className={cn(
+                  "block font-mono text-title font-semibold tabular-nums",
+                  report && report.varianceSeconds > 0
+                    ? "text-status-error"
+                    : "text-status-success",
+                )}
+              >
+                {report && report.varianceSeconds > 0 ? "+" : ""}
+                {formatSecondsToHuman(Math.abs(report?.varianceSeconds ?? 0))}
+              </span>
+              <span className="text-caption text-foreground-muted">Actual vs estimate</span>
+            </Card>
+          </div>
+
+          <Card variant="glass" className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-small font-medium text-foreground-primary">
+                Estimate utilization
+              </span>
+              <span className="font-mono text-caption tabular-nums text-foreground-muted">
+                {report && report.totalEstimatedSeconds > 0
+                  ? `${Math.round(
+                      (report.totalDurationSeconds / report.totalEstimatedSeconds) * 100,
+                    )}%`
+                  : "No estimate"}
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-surface-hover">
+              <div
+                className={cn(
+                  "h-full rounded-full transition-all",
+                  report && report.varianceSeconds > 0
+                    ? "bg-status-error"
+                    : "bg-status-success",
+                )}
+                style={{
+                  width: `${
+                    report && report.totalEstimatedSeconds > 0
+                      ? Math.min(
+                          100,
+                          (report.totalDurationSeconds / report.totalEstimatedSeconds) * 100,
+                        )
+                      : 0
+                  }%`,
+                }}
+              />
+            </div>
+          </Card>
+        </div>
       )}
 
-      {activeTab === "knowledge" && (
-        <EmptyState
-          kicker="SECTION 06 // KNOWLEDGE (ARCHITECTURAL PLACEHOLDER)"
-          title="PROJECT KNOWLEDGE & NOTES"
-          description="Reserved for contextual insights, documentation, and conceptual pursuit linkages."
-        />
-      )}
-
-      {activeTab === "decisions" && (
-        <EmptyState
-          kicker="SECTION 07 // DECISIONS (ARCHITECTURAL PLACEHOLDER)"
-          title="ARCHITECTURE & PROJECT DECISION LOG"
-          description="Reserved for architectural and strategic decisions recorded throughout the lifecycle of this initiative."
-        />
-      )}
-
-      {/* Edit Dialog */}
       <EditProjectDialog
         open={isEditOpen}
         onClose={() => setIsEditOpen(false)}

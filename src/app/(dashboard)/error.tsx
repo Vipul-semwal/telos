@@ -16,14 +16,14 @@ export default function ErrorBoundary({
   }, [error]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
-        moduleCode="SYSTEM // FAULT"
-        title="SYSTEM ERROR"
-        description="An unexpected fault occurred in the dashboard subsystem."
+        moduleCode="System"
+        title="Something went wrong"
+        description="An unexpected fault occurred while loading this view."
       />
       <ErrorState
-        title="APPLICATION RUNTIME FAULT"
+        title="Runtime fault"
         message={error.message || "An unhandled exception occurred."}
         onRetry={() => reset()}
       />

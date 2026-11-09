@@ -22,30 +22,28 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-5 pb-2 sm:flex-row sm:items-end sm:justify-between",
         className,
       )}
     >
-      <div className="space-y-1">
+      <div className="space-y-2">
         {moduleCode && (
           <div className="flex items-center gap-2">
-            <span className="h-1.5 w-1.5 bg-accent inline-block rounded-none" />
-            <span className="font-mono text-[10px] sm:text-[11px] uppercase tracking-widest text-foreground-secondary">
+            <span className="inline-block h-1.5 w-1.5 rounded-full bg-accent" />
+            <span className="font-mono text-micro uppercase tracking-[0.16em] text-foreground-muted">
               {moduleCode}
             </span>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-3">
-          <H1 className="text-lg sm:text-xl">{title}</H1>
+          <H1>{title}</H1>
           {badge}
         </div>
-        {description && <Muted className="text-xs max-w-2xl">{description}</Muted>}
+        {description && <Muted className="max-w-2xl text-small">{description}</Muted>}
       </div>
 
       {actions && (
-        <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-          {actions}
-        </div>
+        <div className="flex shrink-0 items-center gap-2 self-start sm:self-auto">{actions}</div>
       )}
     </div>
   );

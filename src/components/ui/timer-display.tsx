@@ -20,9 +20,9 @@ export function TimerDisplay({
   const etaStatus = calculateEtaStatus(actualSeconds, estimatedSeconds);
 
   const sizeStyles = {
-    sm: "text-xs tracking-normal",
-    md: "text-base tracking-wider",
-    lg: "text-2xl font-semibold tracking-widest",
+    sm: "text-caption",
+    md: "text-base",
+    lg: "text-3xl font-semibold tracking-tight",
   };
 
   const statusColors = {
@@ -36,14 +36,14 @@ export function TimerDisplay({
         {formatSecondsToClock(actualSeconds)}
       </span>
       {estimatedSeconds > 0 && (
-        <span className="text-[11px] text-foreground-secondary font-mono">
+        <span className="font-mono text-caption text-foreground-tertiary">
           / {formatSecondsToClock(estimatedSeconds)}
         </span>
       )}
       {isRunning && (
         <span className="relative flex h-2 w-2">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75" />
-          <span className="relative inline-flex rounded-full h-2 w-2 bg-accent" />
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-accent" />
         </span>
       )}
     </div>

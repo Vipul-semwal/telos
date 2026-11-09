@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Header } from "./header";
 import { Sidebar } from "./sidebar";
+import { CommandPalette } from "./command-palette";
 
 interface AppShellProps {
   children: React.ReactNode;
@@ -11,54 +12,56 @@ interface AppShellProps {
 
 export function AppShell({ children, username }: AppShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [commandOpen, setCommandOpen] = React.useState(false);
 
-  // Close mobile drawer on Escape key
   React.useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMobileMenuOpen(false);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileMenuOpen(false);
     };
     if (mobileMenuOpen) {
       document.body.style.overflow = "hidden";
       window.addEventListener("keydown", handleKeyDown);
     }
     return () => {
-      document.body.style.overflow = "unset";
+      document.body.style.overflow = "";
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [mobileMenuOpen]);
 
   return (
-    <div className="min-h-[100dvh] bg-background-primary text-foreground-primary flex flex-col font-sans">
+    <div className="flex min-h-[100dvh] flex-col font-sans text-foreground-primary">
       <Header
         username={username}
         isMobileMenuOpen={mobileMenuOpen}
         onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+        onOpenCommand={() => setCommandOpen(true)}
       />
 
-      <div className="flex flex-1 relative">
-        {/* Desktop permanent sidebar */}
-        <div className="hidden md:block sticky top-12 h-[calc(100dvh-3rem)] shrink-0">
+      <CommandPalette open={commandOpen} onOpenChange={setCommandOpen} />
+
+      <div className="mx-auto flex w-full max-w-[1600px] flex-1 gap-5 px-3 pb-6 pt-4 sm:px-4 lg:gap-6 lg:px-6">
+        <div className="sticky top-[4.75rem] hidden h-[calc(100dvh-6rem)] shrink-0 lg:block">
           <Sidebar />
         </div>
 
-        {/* Mobile slide-over drawer and backdrop */}
         {mobileMenuOpen && (
-          <div className="fixed inset-0 top-12 z-50 md:hidden flex">
-            {/* Backdrop */}
+          <div className="fixed inset-x-0 bottom-0 top-14 z-50 flex lg:hidden">
             <div
-              className="fixed inset-0 top-12 bg-black/50 transition-opacity"
+              className="glass-overlay fixed inset-0"
               onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
             />
-            {/* Drawer */}
-            <div className="relative z-50 h-full">
-              <Sidebar onNavigate={() => setMobileMenuOpen(false)} />
+            <div className="relative z-10 h-full animate-[slide-in-left_var(--duration-slow)_var(--ease-emphasized)] p-3">
+              <Sidebar
+                onNavigate={() => setMobileMenuOpen(false)}
+                className="h-full w-72 rounded-3xl"
+              />
             </div>
           </div>
         )}
 
-        {/* Responsive main content container */}
-        <main className="flex-1 p-3.5 sm:p-5 md:p-8 max-w-7xl w-full min-w-0 overflow-x-hidden">
-          {children}
+        <main className="min-w-0 flex-1 overflow-x-hidden">
+          <div className="mx-auto w-full max-w-content py-1 sm:py-2">{children}</div>
         </main>
       </div>
     </div>

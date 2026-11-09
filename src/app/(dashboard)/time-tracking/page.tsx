@@ -1,31 +1,51 @@
 ﻿import { getServerSession } from "@/infrastructure/authentication/session";
 import { TimeTrackingService } from "@/modules/time-tracking/service";
+import { TasksService } from "@/modules/tasks/service";
+import { ProjectsService } from "@/modules/projects/service";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
-import { EmptyState } from "@/components/ui/state-views";
+import { TimeTrackingView } from "@/modules/time-tracking/components/time-tracking-view";
 
 export default async function TimeTrackingPage() {
   const session = await getServerSession();
   const userId = session!.user.id;
-  const activeTimer = await TimeTrackingService.getActiveTimer(userId);
+
+  const [activeTimer, sessions, totals, allTasks, projects] = await Promise.all([
+    TimeTrackingService.getActiveTimer(userId),
+    TimeTrackingService.listRecentSessions(userId),
+    TimeTrackingService.getTotalRecorded(userId),
+    TasksService.list(userId),
+    ProjectsService.list(userId),
+  ]);
+
+  const projectTitles = new Map(projects.map((p) => [p.id, p.title]));
+  const openTasks = allTasks
+    .filter((t) => t.status !== "completed" && t.status !== "cancelled")
+    .map((t) => ({
+      id: t.id,
+      title: t.title,
+      projectTitle: projectTitles.get(t.projectId) ?? "PROJECT",
+      estimatedDurationSeconds: t.estimatedDurationSeconds,
+    }));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
-        moduleCode="MODULE 07 // RECORDING"
-        title="TIME TRACKING"
-        description="Stopwatch tracking at task level. Strict domain invariant: exactly one active timer per user. Stopping a timer pauses recording without completing the task."
+        moduleCode="Recording"
+        title="Time tracking"
+        description="Stopwatch tracking at the task level. Exactly one active timer is permitted per user. Stopping a timer records the session without completing the task."
         badge={
           <Badge variant={activeTimer ? "accent" : "neutral"}>
-            {activeTimer ? "ACTIVE SESSION" : "IDLE"}
+            {activeTimer ? "Active session" : "Idle"}
           </Badge>
         }
       />
 
-      <EmptyState
-        kicker="TIME ENGINE // STANDBY"
-        title="TIME RECORDING SUBSYSTEM"
-        description="Discrete work intervals are logged in integer seconds. Actual task duration is computed dynamically as the sum of its sessions."
+      <TimeTrackingView
+        initialActiveTimer={activeTimer}
+        initialSessions={sessions}
+        initialTotals={totals}
+        tasks={openTasks}
       />
     </div>
   );

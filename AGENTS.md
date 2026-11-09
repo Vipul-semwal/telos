@@ -41,6 +41,8 @@ Modules are completely independent and self-contained within `src/modules/`:
 7. `time-tracking`: Discrete stopwatch working sessions with auditable logs.
 8. `reporting`: Derived performance, time aggregation, and velocity analytics.
 9. `cockpit`: High-level operational telemetry dashboard.
+10. `task-yard`: Optional task workspace for TL;DR, rich-text notes, and permanent recall cards.
+11. `notifications`: Reusable scheduling, occurrences, delivery, recurrences, and standalone Notify records.
 
 **Rule for Cross-Module Communication:** Modules must communicate via explicit service interfaces (e.g. `TasksService.list()`). Never import private internal queries or bypass module service boundaries.
 
@@ -91,21 +93,23 @@ Every application-owned record belongs to an authenticated user (`user_id`).
 
 ---
 
-## 6. DESIGN SYSTEM ? BRAUN / DIETER RAMS + NOTHING RESTRIANCE
+## 6. DESIGN SYSTEM ? CALM GLASS + WARM PRECISION
 
-The visual identity is technical, precise, monochrome-focused, and utilitarian.
+The visual identity is calm, precise, and functional. Warm neutral surfaces and deep dark surfaces create a quiet workspace; restrained glass materials establish hierarchy without becoming decoration.
 
-1. **Tokens Only:** All styling must use variables from `src/styles/tokens.css` and Tailwind semantic classes (`bg-background-primary`, `text-foreground-primary`, `border-border`, `bg-accent`).
+1. **Tokens Only:** All styling must use variables from `src/styles/tokens.css` and Tailwind semantic classes (`bg-background-primary`, `text-foreground-primary`, `surface-panel`, `bg-accent`).
 2. **Color Palette:**
-   - Light Theme: Primary Background `#F2F1ED`, Surface `#E9E8E3`, Text `#111111`, Accent `#D9342B`.
-   - Dark Theme: Primary Background `#111111`, Surface `#202020`, Text `#F2F1ED`, Accent `#D9342B`.
-   - Status: Muted, accessible green and red for ETA states.
+   - Light Theme: Primary Background `#F5F3EF`, Raised Surface `#FBFAF7`, Text `#17181B`, Accent `#2563EB`.
+   - Dark Theme: Primary Background `#0A0C10`, Raised Surface `#12151A`, Text `#F4F2EE`, Accent `#6EA8FF`.
+   - Status: Accessible green, amber, and red tokens carry ETA, warning, and error meaning.
 3. **Typography:**
-   - Geist Sans for interface prose.
+   - Manrope for interface prose and controls.
    - Geist Mono for timers, dates, IDs, metadata, and numerical telemetry (`tabular-nums font-mono`).
-4. **Geometric Restraint:**
-   - Minimal radius: `0px` (`rounded-none`) or `2px` (`rounded-sm`).
-   - No decorative gradients, random drop-shadows, pill badges, or emoji navigation.
+4. **Geometric and Material Restraint:**
+   - Use the centralized radius scale. Controls are `rounded`; in-flow panels are normally `rounded-2xl`; floating layers may use `rounded-3xl`; circles are reserved for icons, status dots, and round icon actions.
+   - Use glass materials only for distinct functional layers: chrome, transient controls, and overlays. In-flow content uses `surface-panel`.
+   - No decorative color washes, arbitrary gradients, glowing cards, excessive shadows, pill-shaped badges, or emoji navigation.
+   - Motion must clarify state, stay within the token durations, and respect reduced-motion preferences.
 
 ---
 
@@ -119,7 +123,7 @@ When you are asked to make changes to this codebase, you must abide by the follo
 4. **Never Bypass Authentication or Ownership:** Every query must enforce `userId`. Never write client-only filtering for security.
 5. **No Business Logic in React:** Components only render state and trigger server actions or service calls.
 6. **No Hardcoded User Data:** Test fixtures must use timestamped, randomized identifiers and clean up after execution.
-7. **Adhere to Design Tokens:** Never introduce ad-hoc hex colors or inline styles that violate Braun/Nothing aesthetics.
+7. **Adhere to Design Tokens:** Never introduce ad-hoc hex colors or inline styles that violate the calm glass and warm precision system.
 8. **Versioned Migrations Only:** Never use destructive schema synchronization (`db push` in production). Always use `pnpm db:generate` followed by `pnpm db:migrate`.
 9. **Always Maintain Test Suites:** Any modification to domain logic must be accompanied by updated or new unit/integration tests.
 10. **Record Architectural Decisions:** Significant structural, security, or domain changes must be documented in `docs/DECISIONS/`.

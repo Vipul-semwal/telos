@@ -3,11 +3,22 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  Archive,
+  ArrowRight,
+  Check,
+  FolderSimple,
+  Pause,
+  Play,
+  Plus,
+} from "@phosphor-icons/react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/state-views";
+import { SegmentedControl } from "@/components/ui/segmented-control";
+import { useToast } from "@/components/ui/toast";
 import { CreateProjectDialog } from "@/modules/projects/components/create-project-dialog";
 import type { Project, ProjectStatus } from "@/modules/projects/domain/types";
 
@@ -22,8 +33,16 @@ interface ProjectsViewProps {
   disciplines: DisciplineOption[];
 }
 
+const statusLabels: Record<ProjectStatus, string> = {
+  active: "Active",
+  paused: "Paused",
+  completed: "Completed",
+  archived: "Archived",
+};
+
 export function ProjectsView({ initialProjects, disciplines }: ProjectsViewProps) {
   const router = useRouter();
+  const { toast } = useToast();
   const [projects, setProjects] = React.useState(initialProjects);
   const [filterStatus, setFilterStatus] = React.useState<string>("all");
   const [selectedDisciplineId, setSelectedDisciplineId] = React.useState<string>("all");
@@ -51,6 +70,7 @@ export function ProjectsView({ initialProjects, disciplines }: ProjectsViewProps
       if (!res.ok) {
         setActionError(data.error || "Failed to update project status");
       } else {
+        toast(`Project marked ${statusLabels[newStatus].toLowerCase()}.`);
         refreshData();
       }
     } catch {
@@ -58,14 +78,14 @@ export function ProjectsView({ initialProjects, disciplines }: ProjectsViewProps
     }
   };
 
-  const filteredProjects = projects.filter((p) => {
-    const matchesStatus = filterStatus === "all" ? true : p.status === filterStatus;
+  const filteredProjects = projects.filter((project) => {
+    const matchesStatus = filterStatus === "all" ? true : project.status === filterStatus;
     const matchesDiscipline =
-      selectedDisciplineId === "all" ? true : p.disciplineId === selectedDisciplineId;
+      selectedDisciplineId === "all" ? true : project.disciplineId === selectedDisciplineId;
     return matchesStatus && matchesDiscipline;
   });
 
-  const activeProjectsCount = projects.filter((p) => p.status === "active").length;
+  const activeProjectsCount = projects.filter((project) => project.status === "active").length;
 
   const statusBadgeVariant: Record<ProjectStatus, "accent" | "neutral" | "success" | "warning"> = {
     active: "accent",
@@ -74,108 +94,117 @@ export function ProjectsView({ initialProjects, disciplines }: ProjectsViewProps
     archived: "neutral",
   };
 
+  const statusOptions = [
+    { value: "all", label: "All", count: projects.length },
+    {
+      value: "active",
+      label: "Active",
+      count: projects.filter((project) => project.status === "active").length,
+    },
+    {
+      value: "paused",
+      label: "Paused",
+      count: projects.filter((project) => project.status === "paused").length,
+    },
+    {
+      value: "completed",
+      label: "Completed",
+      count: projects.filter((project) => project.status === "completed").length,
+    },
+    {
+      value: "archived",
+      label: "Archived",
+      count: projects.filter((project) => project.status === "archived").length,
+    },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
-        moduleCode="MODULE 04 // INITIATIVES"
-        title="PROJECTS"
-        description="Defined initiatives with measurable outcomes. Strict invariant: maximum 3 active projects per discipline."
+        moduleCode="Initiatives"
+        title="Projects"
+        description="Defined initiatives with measurable outcomes. A maximum of three active projects is permitted per discipline."
         badge={
           <Badge variant={activeProjectsCount > 0 ? "accent" : "neutral"}>
-            {activeProjectsCount} ACTIVE INITIATIVES
+            {activeProjectsCount} active
           </Badge>
         }
         actions={
           <Button
-            variant="primary"
+            variant={disciplines.length === 0 ? "primary" : "secondary"}
             size="sm"
-            onClick={() => setIsCreateOpen(true)}
-            disabled={disciplines.length === 0}
+            onClick={() =>
+              disciplines.length === 0 ? router.push("/disciplines") : setIsCreateOpen(true)
+            }
           >
-            + NEW PROJECT
+            <Plus size={16} weight="bold" />
+            {disciplines.length === 0 ? "Create discipline" : "New project"}
           </Button>
         }
       />
 
       {actionError && (
-        <div className="p-3 bg-status-error/10 border border-status-error/30 text-status-error text-xs font-mono rounded-sm flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3 rounded-xl bg-status-error/[0.08] px-4 py-3 text-small text-status-error shadow-[inset_0_0_0_1px_rgb(var(--status-error)/0.16)]">
           <span>{actionError}</span>
-          <button onClick={() => setActionError(null)} className="text-status-error underline ml-2">
-            DISMISS
+          <button
+            type="button"
+            onClick={() => setActionError(null)}
+            className="shrink-0 text-caption font-medium underline underline-offset-2"
+          >
+            Dismiss
           </button>
         </div>
       )}
 
-      {/* Filter and Telemetry Control Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-3">
-        {/* Status Filter Buttons */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs font-mono">
-          <span className="text-[10px] text-foreground-secondary uppercase tracking-wider mr-1">
-            STATUS:
-          </span>
-          {["all", "active", "paused", "completed", "archived"].map((st) => (
-            <button
-              key={st}
-              onClick={() => setFilterStatus(st)}
-              className={`px-2.5 py-1 text-[11px] uppercase tracking-wider rounded-sm transition-colors ${
-                filterStatus === st
-                  ? "bg-foreground-primary text-background-primary font-medium"
-                  : "bg-background-secondary text-foreground-secondary hover:text-foreground-primary"
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <SegmentedControl
+          options={statusOptions}
+          value={filterStatus}
+          onChange={setFilterStatus}
+          ariaLabel="Filter projects by status"
+        />
 
-        {/* Discipline Scope Selector */}
         {disciplines.length > 1 && (
-          <div className="flex items-center gap-2 text-xs font-mono">
-            <span className="text-[10px] text-foreground-secondary uppercase tracking-wider shrink-0">
-              DISCIPLINE:
-            </span>
-            <select
-              value={selectedDisciplineId}
-              onChange={(e) => setSelectedDisciplineId(e.target.value)}
-              className="h-7 bg-background-primary border border-border px-2 text-[11px] font-mono text-foreground-primary rounded-sm focus-visible:outline-none"
-            >
-              <option value="all">All Disciplines</option>
-              {disciplines.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.title} ({d.activeCount}/3 active)
-                </option>
-              ))}
-            </select>
-          </div>
+          <select
+            value={selectedDisciplineId}
+            onChange={(event) => setSelectedDisciplineId(event.target.value)}
+            aria-label="Filter projects by discipline"
+            className="h-9 rounded-lg bg-surface-raised/70 px-3 text-small text-foreground-primary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.09)] outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-accent/40"
+          >
+            <option value="all">All disciplines</option>
+            {disciplines.map((discipline) => (
+              <option key={discipline.id} value={discipline.id}>
+                {discipline.title} ({discipline.activeCount}/3 active)
+              </option>
+            ))}
+          </select>
         )}
       </div>
 
-      {/* Discipline Active Capacity Breakdown */}
       {disciplines.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {disciplines.map((d) => (
-            <div
-              key={d.id}
-              className="border border-border p-3 bg-background-primary rounded-sm space-y-1.5"
-            >
-              <div className="flex items-center justify-between text-xs font-mono">
-                <span className="text-foreground-primary font-medium truncate max-w-[160px]">
-                  {d.title}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          {disciplines.map((discipline) => (
+            <div key={discipline.id} className="surface-panel space-y-2 rounded-xl p-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <span className="truncate text-small font-medium text-foreground-primary">
+                  {discipline.title}
                 </span>
                 <span
-                  className={`text-[11px] ${
-                    d.activeCount >= 3 ? "text-status-warning font-semibold" : "text-foreground-secondary"
+                  className={`shrink-0 font-mono text-caption tabular-nums ${
+                    discipline.activeCount >= 3
+                      ? "font-semibold text-status-warning"
+                      : "text-foreground-muted"
                   }`}
                 >
-                  {d.activeCount} / 3 ACTIVE
+                  {discipline.activeCount} / 3
                 </span>
               </div>
-              <div className="w-full bg-background-secondary h-1 rounded-none overflow-hidden">
+              <div className="h-1 w-full overflow-hidden rounded-full bg-surface-hover">
                 <div
-                  className={`h-full transition-all ${
-                    d.activeCount >= 3 ? "bg-status-warning" : "bg-accent"
+                  className={`h-full rounded-full transition-all duration-500 ${
+                    discipline.activeCount >= 3 ? "bg-status-warning" : "bg-accent"
                   }`}
-                  style={{ width: `${(d.activeCount / 3) * 100}%` }}
+                  style={{ width: `${(discipline.activeCount / 3) * 100}%` }}
                 />
               </div>
             </div>
@@ -183,114 +212,133 @@ export function ProjectsView({ initialProjects, disciplines }: ProjectsViewProps
         </div>
       )}
 
-      {/* Projects Grid */}
       {filteredProjects.length === 0 ? (
         <EmptyState
-          kicker="PROJECTS // EMPTY"
-          title={filterStatus === "all" ? "NO PROJECTS DEFINED" : `NO ${filterStatus.toUpperCase()} PROJECTS`}
+          kicker={filterStatus === "all" ? "No projects yet" : `No ${filterStatus} projects`}
+          title={filterStatus === "all" ? "Start an initiative" : "Nothing in this view"}
           description={
             disciplines.length === 0
-              ? "You must define at least one active Discipline before creating Project initiatives."
-              : "Create a Project with a defined outcome to begin organizing tasks under your pursuits."
+              ? "Define at least one active discipline before creating project initiatives."
+              : "Create a project with a defined outcome to begin organizing tasks under your pursuits."
           }
-          actionLabel={disciplines.length > 0 ? "+ CREATE FIRST PROJECT" : undefined}
-          onAction={disciplines.length > 0 ? () => setIsCreateOpen(true) : undefined}
+          actionLabel={disciplines.length > 0 ? "Create first project" : "Create a discipline"}
+          onAction={
+            disciplines.length > 0
+              ? () => setIsCreateOpen(true)
+              : () => router.push("/disciplines")
+          }
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          {filteredProjects.map((p) => (
-            <Card key={p.id} variant="bordered" className="flex flex-col justify-between hover:border-foreground-primary/40 transition-colors">
-              <div className="space-y-3">
-                <CardHeader className="pb-2 mb-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-foreground-muted truncate">
-                      {p.disciplineTitle || "DISCIPLINE"}
-                    </span>
-                    <Badge variant={statusBadgeVariant[p.status]} className="shrink-0">
-                      {p.status}
-                    </Badge>
-                  </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filteredProjects.map((project) => (
+            <Card
+              key={project.id}
+              variant="glass"
+              className="flex flex-col justify-between gap-5 transition-transform duration-200 hover:-translate-y-0.5"
+            >
+              <div className="space-y-4">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-accent/10 text-accent">
+                    <FolderSimple size={20} />
+                  </span>
+                  <Badge variant={statusBadgeVariant[project.status]}>
+                    {statusLabels[project.status]}
+                  </Badge>
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="truncate font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                    {project.disciplineTitle || "Discipline"}
+                  </p>
                   <Link
-                    href={`/projects/${p.id}`}
-                    className="group-hover:text-accent font-mono text-sm font-semibold uppercase tracking-wider text-foreground-primary line-clamp-1 hover:underline pt-1"
+                    href={`/projects/${project.id}`}
+                    className="block text-heading font-semibold text-foreground-primary transition-colors hover:text-accent"
                   >
-                    {p.title}
+                    {project.title}
                   </Link>
-                </CardHeader>
+                </div>
 
-                <CardContent className="space-y-2.5">
-                  {p.desiredOutcome && (
-                    <div className="bg-background-secondary/40 border-l border-accent p-2 text-xs">
-                      <span className="text-[9px] font-mono uppercase tracking-widest text-foreground-muted block mb-0.5">
-                        OUTCOME:
-                      </span>
-                      <p className="text-foreground-primary font-sans text-xs line-clamp-2">
-                        {p.desiredOutcome}
-                      </p>
-                    </div>
-                  )}
-
-                  {p.description && (
-                    <p className="text-xs text-foreground-secondary line-clamp-2">
-                      {p.description}
+                {project.desiredOutcome && (
+                  <div className="rounded-xl bg-accent/[0.06] px-3 py-2.5">
+                    <p className="font-mono text-micro uppercase tracking-[0.12em] text-foreground-muted">
+                      Outcome
                     </p>
-                  )}
-                </CardContent>
+                    <p className="mt-1 line-clamp-2 text-small text-foreground-primary">
+                      {project.desiredOutcome}
+                    </p>
+                  </div>
+                )}
+
+                {project.description && (
+                  <p className="line-clamp-2 text-small text-foreground-secondary">
+                    {project.description}
+                  </p>
+                )}
               </div>
 
-              {/* Card Footer Actions */}
-              <div className="border-t border-border pt-3 mt-3 flex items-center justify-between text-xs font-mono">
+              <div className="flex items-center justify-between gap-2">
                 <Link
-                  href={`/projects/${p.id}`}
-                  className="text-foreground-primary hover:text-accent font-mono text-[11px] underline uppercase"
+                  href={`/projects/${project.id}`}
+                  className="inline-flex items-center gap-1 text-small font-medium text-accent transition-colors hover:text-accent-hover"
                 >
-                  OPEN DETAILS ?
+                  Open
+                  <ArrowRight size={14} />
                 </Link>
 
-                <div className="flex items-center gap-1">
-                  {p.status === "active" && (
+                <div className="flex items-center gap-0.5">
+                  {project.status === "active" && (
                     <button
-                      onClick={() => handleStatusChange(p.id, "paused")}
+                      type="button"
+                      onClick={() => handleStatusChange(project.id, "paused")}
                       title="Pause project"
-                      className="px-1.5 py-0.5 text-[10px] uppercase font-mono text-foreground-secondary hover:text-foreground-primary border border-border rounded-sm hover:bg-background-secondary"
+                      aria-label="Pause project"
+                      className="grid h-7 w-7 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-hover hover:text-foreground-primary"
                     >
-                      PAUSE
+                      <Pause size={14} />
                     </button>
                   )}
-                  {p.status === "paused" && (
+                  {project.status === "paused" && (
                     <button
-                      onClick={() => handleStatusChange(p.id, "active")}
+                      type="button"
+                      onClick={() => handleStatusChange(project.id, "active")}
                       title="Activate project"
-                      className="px-1.5 py-0.5 text-[10px] uppercase font-mono text-accent hover:text-white border border-accent/40 rounded-sm hover:bg-accent"
+                      aria-label="Activate project"
+                      className="grid h-7 w-7 place-items-center rounded-md text-accent transition-colors hover:bg-accent/10"
                     >
-                      ACTIVATE
+                      <Play size={14} />
                     </button>
                   )}
-                  {p.status !== "completed" && p.status !== "archived" && (
+                  {project.status !== "completed" && project.status !== "archived" && (
                     <button
-                      onClick={() => handleStatusChange(p.id, "completed")}
+                      type="button"
+                      onClick={() => handleStatusChange(project.id, "completed")}
                       title="Mark project completed"
-                      className="px-1.5 py-0.5 text-[10px] uppercase font-mono text-status-success hover:text-white border border-status-success/40 rounded-sm hover:bg-status-success"
+                      aria-label="Mark project completed"
+                      className="grid h-7 w-7 place-items-center rounded-md text-status-success transition-colors hover:bg-status-success/10"
                     >
-                      COMPLETE
+                      <Check size={14} weight="bold" />
                     </button>
                   )}
-                  {p.status !== "archived" && (
+                  {project.status !== "archived" && (
                     <button
-                      onClick={() => handleStatusChange(p.id, "archived")}
+                      type="button"
+                      onClick={() => handleStatusChange(project.id, "archived")}
                       title="Archive project"
-                      className="px-1.5 py-0.5 text-[10px] uppercase font-mono text-foreground-muted hover:text-foreground-primary border border-border rounded-sm hover:bg-background-secondary"
+                      aria-label="Archive project"
+                      className="grid h-7 w-7 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-hover hover:text-foreground-primary"
                     >
-                      ARCHIVE
+                      <Archive size={14} />
                     </button>
                   )}
-                  {p.status === "archived" && (
+                  {project.status === "archived" && (
                     <button
-                      onClick={() => handleStatusChange(p.id, "active")}
+                      type="button"
+                      onClick={() => handleStatusChange(project.id, "active")}
                       title="Restore project"
-                      className="px-1.5 py-0.5 text-[10px] uppercase font-mono text-accent border border-accent/40 rounded-sm hover:bg-accent hover:text-white"
+                      aria-label="Restore project"
+                      className="grid h-7 w-7 place-items-center rounded-md text-accent transition-colors hover:bg-accent/10"
                     >
-                      RESTORE
+                      <Play size={14} />
                     </button>
                   )}
                 </div>
@@ -300,7 +348,6 @@ export function ProjectsView({ initialProjects, disciplines }: ProjectsViewProps
         </div>
       )}
 
-      {/* Create Dialog */}
       <CreateProjectDialog
         open={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}

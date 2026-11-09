@@ -34,5 +34,9 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 
+# Generated audit and recording artifacts
+/audit-artifacts/
+/video-artifacts/
+
 # Docker volumes / local data
 postgres_data/

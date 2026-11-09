@@ -22,6 +22,27 @@
       "when": 1793809931808,
       "tag": "0002_unusual_mandroid",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793810666587,
+      "tag": "0003_wealthy_sauron",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793812018030,
+      "tag": "0004_flippant_magma",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793988175846,
+      "tag": "0005_dear_sunfire",
+      "breakpoints": true
     }
   ]
 }

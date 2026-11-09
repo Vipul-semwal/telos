@@ -3,13 +3,13 @@ import { LoadingState } from "@/components/ui/state-views";
 
 export default function Loading() {
   return (
-    <div className="space-y-6">
+    <div className="space-y-7">
       <PageHeader
-        moduleCode="SYSTEM // TELEMETRY"
-        title="LOADING MODULE"
-        description="Retrieving state from database..."
+        moduleCode="System"
+        title="Loading"
+        description="Retrieving workspace state."
       />
-      <LoadingState label="FETCHING WORKSPACE TELEMETRY..." />
+      <LoadingState label="Fetching workspace telemetry…" />
     </div>
   );
 }

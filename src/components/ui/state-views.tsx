@@ -1,4 +1,5 @@
 ﻿import * as React from "react";
+import { CircleNotch, Tray, WarningCircle } from "@phosphor-icons/react/dist/ssr";
 import { cn } from "@/shared/utils/cn";
 import { Button } from "./button";
 import { Muted } from "./typography";
@@ -13,7 +14,7 @@ export interface EmptyStateProps {
 }
 
 export function EmptyState({
-  kicker = "INVENTORY // EMPTY",
+  kicker = "Nothing here yet",
   title,
   description,
   actionLabel,
@@ -23,21 +24,22 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "w-full border border-dashed border-border p-8 sm:p-12 text-center rounded-sm bg-background-primary select-none",
+        "surface-panel w-full select-none rounded-3xl px-6 py-14 text-center",
         className,
       )}
     >
-      <div className="max-w-md mx-auto space-y-3">
-        <span className="font-mono text-[10px] uppercase tracking-widest text-foreground-muted block">
+      <div className="mx-auto max-w-md space-y-4">
+        <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-accent/10 text-accent">
+          <Tray size={22} weight="regular" />
+        </span>
+        <span className="block font-mono text-micro uppercase tracking-[0.14em] text-foreground-muted">
           {kicker}
         </span>
-        <h3 className="font-mono text-sm uppercase tracking-wider text-foreground-primary font-medium">
-          {title}
-        </h3>
-        <Muted className="text-xs leading-relaxed">{description}</Muted>
+        <h3 className="text-heading font-semibold text-foreground-primary">{title}</h3>
+        <Muted className="mx-auto max-w-sm text-small leading-relaxed">{description}</Muted>
         {actionLabel && onAction && (
           <div className="pt-2">
-            <Button variant="secondary" size="sm" onClick={onAction}>
+            <Button variant="primary" size="sm" onClick={onAction}>
               {actionLabel}
             </Button>
           </div>
@@ -52,23 +54,16 @@ export interface LoadingStateProps {
   className?: string;
 }
 
-export function LoadingState({
-  label = "LOADING TELEMETRY...",
-  className,
-}: LoadingStateProps) {
+export function LoadingState({ label = "Loading", className }: LoadingStateProps) {
   return (
     <div
       className={cn(
-        "w-full border border-border p-8 sm:p-12 text-center rounded-sm bg-background-secondary/30",
+        "surface-panel flex w-full items-center justify-center gap-3 rounded-3xl px-6 py-14",
         className,
       )}
     >
-      <div className="inline-flex items-center gap-3">
-        <span className="h-2 w-2 bg-accent animate-ping rounded-none" />
-        <span className="font-mono text-xs uppercase tracking-widest text-foreground-secondary">
-          {label}
-        </span>
-      </div>
+      <CircleNotch size={16} weight="bold" className="animate-spin text-accent" />
+      <span className="text-small text-foreground-secondary">{label}</span>
     </div>
   );
 }
@@ -81,7 +76,7 @@ export interface ErrorStateProps {
 }
 
 export function ErrorState({
-  title = "SYSTEM FAULT",
+  title = "Something went wrong",
   message,
   onRetry,
   className,
@@ -89,20 +84,18 @@ export function ErrorState({
   return (
     <div
       className={cn(
-        "w-full border border-status-error/40 bg-status-error/5 p-4 sm:p-6 rounded-sm space-y-3",
+        "space-y-3 rounded-2xl bg-status-error/[0.07] p-5 shadow-[inset_0_0_0_1px_rgb(var(--status-error)/0.16)]",
         className,
       )}
     >
-      <div className="flex items-center gap-2">
-        <span className="h-2 w-2 bg-status-error rounded-none" />
-        <h4 className="font-mono text-xs uppercase tracking-wider text-status-error font-medium">
-          {title}
-        </h4>
+      <div className="flex items-center gap-2.5">
+        <WarningCircle size={18} weight="fill" className="text-status-error" />
+        <h4 className="text-subheading font-semibold text-status-error">{title}</h4>
       </div>
-      <p className="font-mono text-xs text-foreground-secondary">{message}</p>
+      <p className="text-small text-foreground-secondary">{message}</p>
       {onRetry && (
         <Button variant="outline" size="sm" onClick={onRetry}>
-          RETRY OPERATION
+          Try again
         </Button>
       )}
     </div>

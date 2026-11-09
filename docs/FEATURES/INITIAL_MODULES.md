@@ -4,6 +4,7 @@
 - **Domain Entity:** `disciplines` table.
 - **Rule:** Maximum 3 active disciplines per user.
 - **Statuses:** `active`, `archived`.
+- **Working UI/API:** List, create, edit, archive, restore, and active-capacity feedback.
 
 ## 2. Projects (`src/modules/projects`)
 - **Domain Entity:** `projects` table (`id`, `user_id`, `discipline_id`, `title`, `description`, `desired_outcome`, `status`, `created_at`, `updated_at`).
@@ -17,21 +18,23 @@
 - **Project Structure & Sections:**
   - Overview (summary, outcome, discipline context, progress)
   - Tasks (relationship foundation to child tasks)
-  - Warehouse (future placeholder)
-  - Resolution Engine (future placeholder)
-  - Reports (future placeholder)
-  - Knowledge (future placeholder)
-  - Decisions (future placeholder)
+  - Reports (derived duration, estimate variance, completion, sessions)
+  - Warehouse, Resolution Engine, Knowledge, and Decisions remain deferred and are hidden from the MVP tab bar.
 
 ## 3. Tasks & Subtasks (`src/modules/tasks`)
 - **Domain Entity:** `tasks` table with self-referencing `parentTaskId`.
 - **Rule:** Hierarchy is strictly Discipline ? Project ? Task ? Subtask. No nested subtasks (`parentTask.parentTaskId === null`).
 - **Statuses:** `todo`, `in_progress`, `completed`, `cancelled`.
 - **History:** `task_history` table records state transitions and working events.
+- **Ordering:** Accessible move-up and move-down controls persist root-task order through the reorder service.
 
 ## 4. Brain Dump (`src/modules/brain-dump`)
 - **Domain Entity:** `brain_dump_items` table.
-- **Rule:** Capture raw thought without classification; triage converts to project, task, or subtask.
+- **Rule:** Universal capture inbox independent of the Discipline → Project → Task hierarchy.
+- **Lifecycle:** `inbox` → `converted` | `archived` | `dismissed`; archived/dismissed items can be restored. Records are never hard-deleted.
+- **Classification:** Optional `kind` hint; manual triage can convert to a Task (requires a valid parent Project), create a Project from a Discipline, link to an existing Project/Discipline, or keep as a note.
+- **Traceability:** Conversion records `convertedToType`, `convertedToId`, and `convertedAt` while preserving the original content.
+- **Full specification:** `docs/FEATURES/BRAIN_DUMP.md`.
 
 ## 5. Daily Planning (`src/modules/daily-planning`)
 - **Domain Entity:** `daily_plans` and `daily_plan_items`.
@@ -45,6 +48,8 @@
 
 ## 7. Reporting (`src/modules/reporting`)
 - **Rule:** Derived entirely on-demand from underlying task sessions. No duplicated static totals.
+- **Project reports:** Project-level tracked time, estimate, variance, utilization, session count, and completion are exposed in the project interface.
 
 ## 8. Cockpit (`src/modules/cockpit`)
 - **Rule:** Aggregates operational telemetry (disciplines count, daily planned time, running timer, inbox count).
+- **Next action:** Deterministically recommends the next move from hierarchy state, today’s plan, active timer, overdue work, open tasks, and inbox pressure.

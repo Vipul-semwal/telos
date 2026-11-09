@@ -1,188 +1,116 @@
-# Telos ? Personal Intelligence System
+# Telos
 
-> **A long-term personal intelligence architecture and pursuit cockpit.**  
-> Built with Next.js App Router, TypeScript (Strict), PostgreSQL, Drizzle ORM, and Better Auth.
+Telos is a personal operating system for long-term pursuits, deliberate
+planning, measured execution, and evidence-based review.
 
----
+It is a modular Next.js application backed by PostgreSQL. Core behavior is
+deterministic and AI-independent.
 
-## 1. Overview & Philosophy
-
-Telos is **not** a generic task SaaS, project management Kanban board, or gamified to-do list.
-
-It is an empirical personal intelligence system designed to:
-- Structure long-term human pursuits into clear **Disciplines** and measurable **Projects**.
-- Track discrete work execution through auditable **Time Sessions** at the task level.
-- Restrict daily planning to a sustainable **4-hour planned work capacity** to prevent burnout.
-- Surface objective operational velocity and behavioral progress without subjective vanity metrics.
-- Maintain **100% deterministic operation**, running independently of any external AI provider.
-
-The codebase is built as a maintainable **Modular Monolith** engineered to be understood and extended by future human engineers and AI coding agents alike.
-
----
-
-## 2. Technology Stack
-
-| Component | Technology | Rationale |
-| :--- | :--- | :--- |
-| **Framework** | Next.js 15.3.9 (App Router) | High-performance React Server Components & API routes |
-| **Language** | TypeScript 5.9.3 (Strict Mode) | Strong compile-time type safety and domain invariant checks |
-| **Runtime** | Node.js v24 LTS | Long-term support, stable performance |
-| **Package Manager** | pnpm 11.25.0 | Pinned, deterministic dependency tree |
-| **Database** | PostgreSQL 16 (Alpine) | Robust ACID relational integrity, composite constraints |
-| **ORM & Migrations** | Drizzle ORM 0.45.4 & Drizzle Kit | Typesafe queries with explicit, versioned SQL migrations |
-| **Authentication** | Better Auth 1.7.15 (Username Plugin) | Secure session management with username-only privacy |
-| **Validation** | Zod 3.24.2 | Runtime schema validation across domain layers |
-| **Styling** | Tailwind CSS 3.4.19 | Centralized CSS design tokens (Braun / Nothing aesthetic) |
-| **Testing** | Vitest 3.2.7 & Playwright 1.64.1 | Fast unit/integration test suites & end-to-end testing |
-| **Local Infrastructure**| Docker Compose | Isolated containerized database with health check |
-
----
-
-## 3. Pursuit Hierarchy & Invariants
+## Operating Loop
 
 ```text
-DISCIPLINE (Max 3 active per user)
-   ??? PROJECT (Max 3 active per discipline)
-          ??? TASK (Integer seconds ETA, time tracked)
-                 ??? SUBTASK (Parent depth = 1, no further nesting)
+Capture → Triage → Project/Task → Plan → Execute → Measure → Decide
 ```
 
-- **Daily Planning Limit:** 4 hours (14,400 seconds) max planned allocation per day.
-- **Stopwatch Rule:** Exactly one active timer per user at any time. Stopping a timer pauses recording; it does **not** complete the task.
-- **ETA Status:**
-  - **Green:** Actual duration $\le$ Estimated duration.
-  - **Red:** Actual duration $>$ Estimated duration.
+## Features
 
----
+- Username-only authentication and isolated per-user data.
+- Disciplines, projects, tasks, and one-level subtasks.
+- Optional Task Yard for each task: TL;DR, rich-text notes, flashcards,
+  reminders, review history, and scheduled recall.
+- Universal Brain Dump capture and manual triage.
+- Daily planning with a strict four-hour planned-work limit.
+- Task-level stopwatch tracking with one active timer.
+- Notify module for standalone and recurring notifications.
+- Shared scheduling engine for Notify and Task Yard.
+- Cockpit next-action guidance and one-at-a-time due notifications.
+- Derived project, discipline, daily, and ETA reporting.
+- Light, dark, system, and reduced-transparency modes.
 
-## 4. Getting Started
+## Hierarchy and Rules
 
-### Prerequisites
+```text
+Discipline → Project → Task → Subtask
+```
 
-- Node.js LTS (v20+ or v24)
-- pnpm (`corepack enable pnpm` or `npm install -g pnpm`)
-- Docker & Docker Compose
+- Maximum 3 active disciplines per user.
+- Maximum 3 active projects per discipline.
+- No subtasks beneath subtasks.
+- Maximum 4 hours of planned work per day.
+- One task-level timer per user.
+- Stopping a timer records time without completing its task.
+- ETA uses cumulative task duration.
 
-### 1. Clone & Install Dependencies
+## Quick Start
+
+Requirements: Node.js 20+, pnpm, Docker, and Docker Compose.
 
 ```bash
-git clone <repo_url>
+git clone git@github.com:Vipul-semwal/Telos.git
 cd Telos
-pnpm install
-```
-
-### 2. Environment Setup
-
-Copy `.env.example` to `.env`:
-
-```bash
 cp .env.example .env
-```
-
-Verify the default values:
-- `DATABASE_URL=postgresql://telos_user:telos_password@localhost:5432/telos`
-- `BETTER_AUTH_SECRET=<min-32-chars-secret>`
-- `BETTER_AUTH_URL=http://localhost:3000`
-
-### 3. Start PostgreSQL with Docker Compose
-
-```bash
+pnpm install
 docker compose up -d
-```
-
-Verify database health:
-```bash
-docker compose ps
-```
-
-### 4. Apply Database Migrations
-
-```bash
 pnpm db:migrate
-```
-
-### 5. Launch Development Server
-
-```bash
 pnpm dev
 ```
 
-Visit [http://localhost:3000](http://localhost:3000) to register a new account (username and password only).
+Open `http://localhost:3000`.
 
----
+No email is collected. Accounts use a username and password only, so automated
+password recovery is unavailable.
 
-## 5. Verification Commands
+## Daily Use
 
-All changes must pass the four-stage quality gate:
+1. Define up to three active disciplines.
+2. Create projects with measurable outcomes.
+3. Break projects into tasks and optional subtasks.
+4. Use Task Yard for notes and recall work specific to a task.
+5. Capture unknown inputs in Brain Dump, then triage them.
+6. Plan no more than four hours of work.
+7. Run the task-level timer and inspect reports.
+8. Use Notify and Cockpit for scheduled attention.
+
+## Commands
 
 ```bash
-# 1. Type checking (strict mode)
-pnpm type-check
-
-# 2. Linting (ESLint 9 + Next.js core vitals)
-pnpm lint
-
-# 3. Test suites (Unit & Integration tests)
-pnpm test
-
-# 4. Production build
-pnpm build
+pnpm dev                    # development server
+pnpm build                  # production build
+pnpm type-check             # TypeScript
+pnpm lint                   # ESLint
+pnpm test                   # unit and integration tests
+pnpm test:e2e               # Playwright browser tests
+pnpm db:generate            # generate a Drizzle migration
+pnpm db:migrate             # apply migrations
+pnpm notifications:process  # materialize due schedules
 ```
 
----
+## Architecture
 
-## 6. Repository Architecture
+The codebase is a modular monolith:
+
+- `src/app`: routes, pages, and API handlers.
+- `src/components`: shared presentation primitives.
+- `src/modules`: domain services, schemas, validation, and module UI.
+- `src/infrastructure`: database, authentication, and logging.
+
+Modules communicate through public service interfaces. Every application-owned
+row is scoped to the authenticated user.
+
+Task Yard and Notify share one scheduling engine:
 
 ```text
-Telos/
-??? AGENTS.md                  # Central instructions for AI coding agents
-??? README.md                  # This file
-??? CONTRIBUTING.md            # Guidelines for contributors
-??? docker-compose.yml         # Containerized PostgreSQL service
-??? drizzle.config.ts          # Drizzle Kit migration configuration
-??? next.config.ts             # Next.js configuration
-??? package.json               # Pinned dependencies
-??? tsconfig.json              # Strict TypeScript configuration
-??? vitest.config.ts           # Vitest unit/integration configuration
-??? playwright.config.ts       # Playwright E2E configuration
-??? docs/                      # Technical documentation & ADRs
-?   ??? ARCHITECTURE.md
-?   ??? AUTHENTICATION.md
-?   ??? DATABASE.md
-?   ??? DESIGN_SYSTEM.md
-?   ??? SECURITY.md
-?   ??? DECISIONS/             # Architecture Decision Records (ADRs)
-?   ??? FEATURES/              # Feature specifications
-??? drizzle/                   # Versioned SQL migration files
-??? src/
-?   ??? app/                   # Next.js App Router (pages & route handlers)
-?   ??? components/            # UI primitives & layout shells (Braun / Nothing tokens)
-?   ??? infrastructure/        # Database, Auth, Logging adapters
-?   ??? modules/               # Self-contained domain modules
-?   ?   ??? auth/
-?   ?   ??? disciplines/
-?   ?   ??? projects/
-?   ?   ??? tasks/
-?   ?   ??? brain-dump/
-?   ?   ??? daily-planning/
-?   ?   ??? time-tracking/
-?   ?   ??? reporting/
-?   ?   ??? cockpit/
-?   ??? shared/                # Common types, errors, duration & date utils
-?   ??? styles/                # tokens.css & globals.css
-??? tests/
-    ??? unit/                  # Domain rule & validation tests
-    ??? integration/           # Multi-tenant data isolation tests
-    ??? e2e/                   # Browser authentication & journey tests
+Source → Schedule → Occurrence → Delivery → Cockpit
 ```
 
----
+Only Cockpit delivery is implemented. The destination interface is extensible
+for future channels.
 
-## 7. Documentation Index
+## Documentation
 
-- [AGENTS.md](./AGENTS.md): Coding agent governance & development invariants.
-- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md): Modular monolith layer boundaries.
-- [docs/AUTHENTICATION.md](./docs/AUTHENTICATION.md): Better Auth username plugin strategy.
-- [docs/DATABASE.md](./docs/DATABASE.md): Schema design & integrity constraints.
-- [docs/DESIGN_SYSTEM.md](./docs/DESIGN_SYSTEM.md): Braun / Nothing design tokens.
-- [docs/DECISIONS/](./docs/DECISIONS/): Formal architectural decision logs.
+- [Architecture](./docs/ARCHITECTURE.md)
+- [Database](./docs/DATABASE.md)
+- [Design system](./docs/DESIGN_SYSTEM.md)
+- [Task Yard and Notify](./docs/FEATURES/TASK_YARD_NOTIFY.md)
+- [Architecture decisions](./docs/DECISIONS/)
+- [AI and developer governance](./AGENTS.md)

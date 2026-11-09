@@ -1,53 +1,146 @@
 :root {
-  /* Telos Design Tokens ? Light Theme (Default) */
-  /* Philosophy: Braun / Dieter Rams functional restraint + Nothing precision */
-  --bg-primary: #F2F1ED;
-  --bg-secondary: #E9E8E3;
-  --bg-tertiary: #DFDDD6;
-  
-  --text-primary: #111111;
-  --text-secondary: #777777;
-  --text-muted: #999999;
-  
-  --border: #D6D4CD;
-  --border-strong: #B8B5AA;
-  
-  --accent: #D9342B;
-  --accent-hover: #BE2820;
-  
-  --status-success: #1E6B38;
-  --status-warning: #9A6200;
-  --status-error: #D9342B;
-  --status-info: #23588F;
-  
-  --eta-green: #1E6B38;
-  --eta-red: #D9342B;
+  /* Telos Design Tokens — Light Theme (Default) */
+  /* Philosophy: calm glass, warm light, deep dark, precise type. */
 
-  --font-geist-sans: "Geist Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-geist-mono: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  /* Color channels (consumed by Tailwind as rgb(var(--token) / alpha)) */
+  --bg-primary: 245 243 239;
+  --bg-secondary: 236 233 227;
+  --bg-tertiary: 224 220 213;
+
+  --surface-raised: 251 250 247;
+  --surface-elevated: 255 255 255;
+  --surface-inset: 238 235 229;
+  --surface-hover: 232 229 223;
+  --surface-selected: 226 234 252;
+
+  --text-primary: 23 24 27;
+  --text-secondary: 91 94 102;
+  --text-muted: 122 126 135;
+  --text-tertiary: 138 141 149;
+  --text-quaternary: 179 181 187;
+
+  --border: 210 206 198;
+  --border-strong: 184 180 170;
+  --separator: 20 20 25;
+
+  --accent: 37 99 235;
+  --accent-hover: 29 78 216;
+  --accent-pressed: 30 64 175;
+
+  --status-success: 31 138 91;
+  --status-warning: 178 106 0;
+  --status-error: 209 67 67;
+  --status-info: 47 107 255;
+
+  --eta-green: 31 138 91;
+  --eta-red: 209 67 67;
+
+  /* Solid surfaces for fallbacks and reduced-transparency mode */
+  --surface-raised-solid: #fbfaf7;
+  --surface-elevated-solid: #ffffff;
+  --surface-chrome-solid: #f7f5f0;
+  --surface-inset-solid: #eeebe5;
+
+  /* Glass materials */
+  --material-thin: rgba(255, 255, 255, 0.38);
+  --material-regular: rgba(255, 255, 255, 0.56);
+  --material-thick: rgba(255, 255, 255, 0.76);
+  --material-chrome: rgba(250, 248, 244, 0.62);
+  --material-overlay: rgba(22, 22, 30, 0.28);
+  --glass-border: rgba(255, 255, 255, 0.58);
+  --glass-highlight: rgba(255, 255, 255, 0.72);
+  --glass-blur: 26px;
+  --glass-saturate: 180%;
+
+  /* Elevation */
+  --shadow-control: 0 1px 2px rgba(24, 24, 34, 0.08), 0 1px 1px rgba(24, 24, 34, 0.04);
+  --shadow-window: 0 24px 80px rgba(24, 24, 34, 0.16), 0 2px 8px rgba(24, 24, 34, 0.06);
+  --shadow-popover: 0 20px 60px rgba(24, 24, 34, 0.22), 0 2px 8px rgba(24, 24, 34, 0.08);
+  --shadow-glass: 0 12px 40px rgba(24, 24, 34, 0.12), inset 0 1px 0 var(--glass-highlight);
+
+  /* Atmospheric background glows */
+  --glow-1: rgba(255, 172, 122, 0.28);
+  --glow-2: rgba(108, 150, 255, 0.2);
+  --glow-3: rgba(118, 210, 190, 0.16);
+
+  /* Geometry */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-control: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-3xl: 28px;
+
+  /* Typography */
+  --font-sans: var(--font-manrope), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --font-mono: var(--font-geist-mono), "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas,
+    monospace;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-emphasized: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-fast: 140ms;
+  --duration-standard: 200ms;
+  --duration-slow: 320ms;
 }
 
 .dark {
-  /* Telos Design Tokens ? Dark Theme */
-  --bg-primary: #111111;
-  --bg-secondary: #202020;
-  --bg-tertiary: #2A2A2A;
-  
-  --text-primary: #F2F1ED;
-  --text-secondary: #A0A09B;
-  --text-muted: #666663;
-  
-  --border: #2D2D2D;
-  --border-strong: #404040;
-  
-  --accent: #D9342B;
-  --accent-hover: #E34840;
-  
-  --status-success: #2E7D32;
-  --status-warning: #C77700;
-  --status-error: #D9342B;
-  --status-info: #3B82F6;
-  
-  --eta-green: #2E7D32;
-  --eta-red: #D9342B;
+  /* Telos Design Tokens — Dark Theme */
+
+  --bg-primary: 10 12 16;
+  --bg-secondary: 18 21 27;
+  --bg-tertiary: 26 30 38;
+
+  --surface-raised: 18 21 26;
+  --surface-elevated: 23 27 34;
+  --surface-inset: 12 14 18;
+  --surface-hover: 32 37 46;
+  --surface-selected: 24 36 62;
+
+  --text-primary: 244 242 238;
+  --text-secondary: 168 172 180;
+  --text-muted: 132 136 146;
+  --text-tertiary: 116 120 130;
+  --text-quaternary: 80 84 92;
+
+  --border: 46 51 61;
+  --border-strong: 66 72 84;
+  --separator: 255 255 255;
+
+  --accent: 110 168 255;
+  --accent-hover: 138 184 255;
+  --accent-pressed: 76 141 255;
+
+  --status-success: 74 181 128;
+  --status-warning: 224 155 58;
+  --status-error: 235 106 106;
+  --status-info: 110 168 255;
+
+  --eta-green: 74 181 128;
+  --eta-red: 235 106 106;
+
+  --surface-raised-solid: #12151a;
+  --surface-elevated-solid: #171b22;
+  --surface-chrome-solid: #101318;
+  --surface-inset-solid: #0c0e12;
+
+  --material-thin: rgba(30, 34, 43, 0.35);
+  --material-regular: rgba(24, 28, 36, 0.55);
+  --material-thick: rgba(20, 24, 31, 0.76);
+  --material-chrome: rgba(16, 19, 24, 0.62);
+  --material-overlay: rgba(0, 0, 0, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-highlight: rgba(255, 255, 255, 0.12);
+
+  --shadow-control: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 1px rgba(0, 0, 0, 0.24);
+  --shadow-window: 0 24px 80px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.32);
+  --shadow-popover: 0 20px 60px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-glass: 0 12px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 var(--glass-highlight);
+
+  --glow-1: rgba(70, 110, 255, 0.22);
+  --glow-2: rgba(48, 200, 190, 0.12);
+  --glow-3: rgba(255, 140, 90, 0.1);
 }

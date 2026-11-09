@@ -1,7 +1,7 @@
 # ADR 0003: Braun / Dieter Rams & Nothing Design Tokens
 
 ## Status
-Accepted
+Superseded by [ADR 0005](./0005-calm-glass-visual-system.md)
 
 ## Context
 Generic SaaS templates and AI-generated component libraries tend to default to rounded pill buttons, heavy drop shadows, decorative color gradients, and arbitrary spacing. Telos requires a timeless, disciplined, and utilitarian aesthetic.

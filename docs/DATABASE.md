@@ -20,7 +20,7 @@
 | `projects` | projects | Initiatives under disciplines | `(userId, disciplineId, status)` |
 | `tasks` | tasks | Actionable items & subtasks | `(userId, projectId, status)`, `parentTaskId` |
 | `task_history` | tasks | Append-only execution history | `(taskId, createdAt)`, `userId` |
-| `brain_dump_items` | brain-dump | Raw captured thoughts | `(userId, status)` |
+| `brain_dump_items` | brain-dump | Universal capture inbox (never hard-deleted) | `(userId, status)`, `(userId, createdAt)`, `(userId, kind)` |
 | `daily_plans` | daily-planning | Day allocation records | `(userId, planDate) [unique]` |
 | `daily_plan_items` | daily-planning | Tasks assigned to today | `(dailyPlanId, taskId) [unique]` |
 | `time_sessions` | time-tracking | Discrete stopwatch logs | `(userId, taskId)`, `(userId, endTime)` |

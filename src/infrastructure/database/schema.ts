@@ -5,3 +5,5 @@ export * from "@/modules/tasks/schema";
 export * from "@/modules/brain-dump/schema";
 export * from "@/modules/daily-planning/schema";
 export * from "@/modules/time-tracking/schema";
+export * from "@/modules/task-yard/schema";
+export * from "@/modules/notifications/schema";

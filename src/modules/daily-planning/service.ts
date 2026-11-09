@@ -145,6 +145,57 @@ export class DailyPlanningService {
   }
 
   /**
+   * Update a daily plan item (planned duration, status, or sort order).
+   * If the planned duration increases, the 4-hour daily capacity is re-validated.
+   */
+  static async updatePlanItem(userId: string, itemId: string, input: UpdatePlanItemInput) {
+    const [existing] = await db
+      .select()
+      .from(dailyPlanItems)
+      .where(and(eq(dailyPlanItems.id, itemId), eq(dailyPlanItems.userId, userId)));
+
+    if (!existing) {
+      throw new NotFoundError("Daily plan item", itemId);
+    }
+
+    if (input.plannedDurationSeconds !== undefined) {
+      const planItems = await db
+        .select({ plannedDurationSeconds: dailyPlanItems.plannedDurationSeconds })
+        .from(dailyPlanItems)
+        .where(
+          and(
+            eq(dailyPlanItems.dailyPlanId, existing.dailyPlanId),
+            eq(dailyPlanItems.userId, userId),
+          ),
+        );
+
+      const allocated = planItems.reduce((acc, curr) => acc + curr.plannedDurationSeconds, 0);
+      const projected = allocated - existing.plannedDurationSeconds + input.plannedDurationSeconds;
+
+      if (projected > MAX_DAILY_PLANNED_SECONDS) {
+        throw new CapacityExceededError(
+          `Daily planning capacity exceeded: maximum daily planned work is 4 hours (14,400 seconds).`,
+        );
+      }
+    }
+
+    const [updated] = await db
+      .update(dailyPlanItems)
+      .set({
+        ...(input.plannedDurationSeconds !== undefined
+          ? { plannedDurationSeconds: input.plannedDurationSeconds }
+          : {}),
+        ...(input.status !== undefined ? { status: input.status } : {}),
+        ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(dailyPlanItems.id, itemId), eq(dailyPlanItems.userId, userId)))
+      .returning();
+
+    return updated;
+  }
+
+  /**
    * Remove a task from the daily plan.
    */
   static async removePlanItem(userId: string, itemId: string) {

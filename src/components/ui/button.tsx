@@ -9,20 +9,23 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = "secondary", size = "md", disabled, ...props }, ref) => {
     const baseStyles =
-      "inline-flex items-center justify-center font-mono text-xs uppercase tracking-wider transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-foreground-primary disabled:opacity-40 disabled:cursor-not-allowed rounded-sm select-none";
+      "inline-flex select-none items-center justify-center gap-2 rounded font-medium transition-all duration-150 ease-smooth focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus-visible:ring-offset-2 focus-visible:ring-offset-background-primary active:scale-[0.98] disabled:pointer-events-none disabled:opacity-40";
 
     const variantStyles = {
-      primary: "bg-accent text-white hover:bg-accent-hover",
-      secondary: "bg-background-secondary text-foreground-primary border border-border hover:bg-background-tertiary",
-      outline: "border border-border text-foreground-primary hover:bg-background-secondary",
-      ghost: "text-foreground-secondary hover:text-foreground-primary hover:bg-background-secondary",
-      danger: "bg-status-error text-white hover:opacity-90",
+      primary:
+        "bg-accent text-white shadow-control hover:bg-accent-hover active:bg-accent-pressed",
+      secondary:
+        "bg-surface-raised/80 text-foreground-primary shadow-control hover:bg-surface-hover",
+      outline:
+        "bg-transparent text-foreground-primary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.14)] hover:bg-surface-hover/60",
+      ghost: "text-foreground-secondary hover:bg-surface-hover/60 hover:text-foreground-primary",
+      danger: "bg-status-error text-white shadow-control hover:opacity-90",
     };
 
     const sizeStyles = {
-      sm: "h-7 px-2.5 text-[11px]",
-      md: "h-9 px-4 text-xs",
-      lg: "h-11 px-6 text-sm",
+      sm: "h-9 px-3 text-caption",
+      md: "h-10 px-4 text-small",
+      lg: "h-11 px-5 text-body",
     };
 
     return (
