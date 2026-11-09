@@ -40,3 +40,4 @@ next-env.d.ts
 
 # Docker volumes / local data
 postgres_data/
+.neon

@@ -14,9 +14,10 @@
     "test:e2e": "playwright test",
     "notifications:process": "tsx --env-file=.env scripts/process-notifications.ts",
     "db:generate": "drizzle-kit generate",
-    "db:migrate": "drizzle-kit migrate",
+    "db:migrate": "tsx --env-file-if-exists=.env scripts/migrate.ts",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "vercel-build": "npm run db:migrate && npm run build"
   },
   "dependencies": {
     "@js-temporal/polyfill": "^0.5.1",
