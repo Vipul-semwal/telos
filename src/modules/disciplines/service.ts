@@ -1,4 +1,5 @@
 import { db } from "@/infrastructure/database";
+import type { DatabaseExecutor } from "@/infrastructure/database";
 import { disciplines } from "./schema";
 import { eq, and, count } from "drizzle-orm";
 import { CapacityExceededError, NotFoundError, ForbiddenError } from "@/shared/errors/domain-error";
@@ -10,8 +11,11 @@ export class DisciplinesService {
   /**
    * Count active disciplines for a user.
    */
-  static async countActive(userId: string): Promise<number> {
-    const result = await db
+  static async countActive(
+    userId: string,
+    executor: DatabaseExecutor = db,
+  ): Promise<number> {
+    const result = await executor
       .select({ count: count() })
       .from(disciplines)
       .where(and(eq(disciplines.userId, userId), eq(disciplines.status, "active")));
@@ -22,15 +26,19 @@ export class DisciplinesService {
    * Create a new discipline.
    * Enforces rule: Maximum 3 active disciplines per user.
    */
-  static async create(userId: string, input: CreateDisciplineInput) {
-    const activeCount = await this.countActive(userId);
+  static async create(
+    userId: string,
+    input: CreateDisciplineInput,
+    executor: DatabaseExecutor = db,
+  ) {
+    const activeCount = await this.countActive(userId, executor);
     if (activeCount >= MAX_ACTIVE_DISCIPLINES) {
       throw new CapacityExceededError(
         `Discipline capacity reached: maximum of ${MAX_ACTIVE_DISCIPLINES} active disciplines allowed`,
       );
     }
 
-    const [created] = await db
+    const [created] = await executor
       .insert(disciplines)
       .values({
         userId,

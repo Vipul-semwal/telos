@@ -1,4 +1,5 @@
 ﻿import { db } from "@/infrastructure/database";
+import type { DatabaseExecutor } from "@/infrastructure/database";
 import { projects } from "./schema";
 import { disciplines } from "../disciplines/schema";
 import { tasks } from "../tasks/schema";
@@ -14,8 +15,12 @@ export class ProjectsService {
    * Count ONLY active projects for a given discipline and user.
    * Paused, completed, and archived projects DO NOT consume capacity.
    */
-  static async countActive(userId: string, disciplineId: string): Promise<number> {
-    const result = await db
+  static async countActive(
+    userId: string,
+    disciplineId: string,
+    executor: DatabaseExecutor = db,
+  ): Promise<number> {
+    const result = await executor
       .select({ count: count() })
       .from(projects)
       .where(
@@ -34,9 +39,13 @@ export class ProjectsService {
    * 1. Every project must belong to exactly one discipline owned by the user.
    * 2. Maximum of 3 active projects per discipline.
    */
-  static async create(userId: string, input: CreateProjectInput) {
+  static async create(
+    userId: string,
+    input: CreateProjectInput,
+    executor: DatabaseExecutor = db,
+  ) {
     // 1. Verify parent discipline exists and belongs to the user
-    const [discipline] = await db
+    const [discipline] = await executor
       .select()
       .from(disciplines)
       .where(and(eq(disciplines.id, input.disciplineId), eq(disciplines.userId, userId)));
@@ -49,7 +58,7 @@ export class ProjectsService {
 
     // 2. Enforce active capacity limit if creating as active
     if (requestedStatus === "active") {
-      const activeCount = await this.countActive(userId, input.disciplineId);
+      const activeCount = await this.countActive(userId, input.disciplineId, executor);
       if (activeCount >= MAX_ACTIVE_PROJECTS_PER_DISCIPLINE) {
         throw new CapacityExceededError(
           `Project capacity reached: maximum of ${MAX_ACTIVE_PROJECTS_PER_DISCIPLINE} active projects allowed per discipline. Pause, complete, or archive an existing project first.`,
@@ -57,7 +66,7 @@ export class ProjectsService {
       }
     }
 
-    const [created] = await db
+    const [created] = await executor
       .insert(projects)
       .values({
         userId,

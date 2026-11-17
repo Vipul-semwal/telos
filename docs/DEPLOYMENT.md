@@ -7,3 +7,4 @@
 - Vercel runs `npm run vercel-build`, which applies pending migrations before building the app.
 - Required environment variables in the Production scope: `DATABASE_URL`, `DATABASE_URL_UNPOOLED`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`.
 - `BETTER_AUTH_URL` must be the canonical HTTPS production URL, for example `https://telos-orcin.vercel.app`.
+- The one-time math curriculum import runs only when `SEED_MATH_ROADMAP=true`; its database completion marker prevents duplicate imports.

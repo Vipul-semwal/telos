@@ -25,3 +25,4 @@ if (env.NODE_ENV !== "production") {
 
 export const db = drizzle(connection, { schema });
 export type Database = typeof db;
+export type DatabaseExecutor = Pick<Database, "select" | "insert" | "update" | "delete">;

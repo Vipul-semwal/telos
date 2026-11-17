@@ -1,4 +1,5 @@
 import { db } from "@/infrastructure/database";
+import type { DatabaseExecutor } from "@/infrastructure/database";
 import { tasks, taskHistory } from "./schema";
 import { projects } from "../projects/schema";
 import { timeSessions } from "../time-tracking/schema";
@@ -31,9 +32,13 @@ export class TasksService {
    *    - Parent task must NOT itself be a subtask (parentTaskId must be null).
    * 3. Subtask cannot contain another subtask (max depth = 1).
    */
-  static async create(userId: string, input: CreateTaskInput): Promise<Task> {
+  static async create(
+    userId: string,
+    input: CreateTaskInput,
+    executor: DatabaseExecutor = db,
+  ): Promise<Task> {
     // 1. Verify project ownership
-    const [project] = await db
+    const [project] = await executor
       .select()
       .from(projects)
       .where(and(eq(projects.id, input.projectId), eq(projects.userId, userId)));
@@ -44,7 +49,7 @@ export class TasksService {
 
     // 2. Verify subtask hierarchy
     if (input.parentTaskId) {
-      const [parentTask] = await db
+      const [parentTask] = await executor
         .select()
         .from(tasks)
         .where(
@@ -70,7 +75,7 @@ export class TasksService {
     // Calculate orderIndex if not provided
     let calculatedOrder = input.orderIndex;
     if (calculatedOrder === undefined) {
-      const maxOrderRes = await db
+      const maxOrderRes = await executor
         .select({
           maxOrder: sql<number>`COALESCE(MAX(${tasks.orderIndex}), -1)`,
         })
@@ -89,7 +94,7 @@ export class TasksService {
 
     const dueDate = input.dueDate ? new Date(input.dueDate) : null;
 
-    const [created] = await db
+    const [created] = await executor
       .insert(tasks)
       .values({
         userId,
@@ -107,7 +112,7 @@ export class TasksService {
       .returning();
 
     // Preserve lifecycle audit record in taskHistory
-    await db.insert(taskHistory).values({
+    await executor.insert(taskHistory).values({
       userId,
       taskId: created.id,
       eventType: "created",
@@ -126,8 +131,12 @@ export class TasksService {
   /**
    * Get a task by ID, verifying user ownership.
    */
-  static async getById(userId: string, id: string): Promise<Task> {
-    const [found] = await db
+  static async getById(
+    userId: string,
+    id: string,
+    executor: DatabaseExecutor = db,
+  ): Promise<Task> {
+    const [found] = await executor
       .select()
       .from(tasks)
       .where(and(eq(tasks.id, id), eq(tasks.userId, userId)));

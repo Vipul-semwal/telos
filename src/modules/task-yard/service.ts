@@ -1,6 +1,7 @@
 import sanitizeHtml from "sanitize-html";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { db } from "@/infrastructure/database";
+import type { DatabaseExecutor } from "@/infrastructure/database";
 import { NotFoundError, ValidationError } from "@/shared/errors/domain-error";
 import { ProjectsService } from "../projects/service";
 import { TasksService } from "../tasks/service";
@@ -50,22 +51,26 @@ function sourceTypeFor(cardType: string): NotificationSourceType {
 }
 
 export class TaskYardService {
-  static async ensureYard(userId: string, taskId: string) {
-    await TasksService.getById(userId, taskId);
-    const [existing] = await db
+  static async ensureYard(
+    userId: string,
+    taskId: string,
+    executor: DatabaseExecutor = db,
+  ) {
+    await TasksService.getById(userId, taskId, executor);
+    const [existing] = await executor
       .select()
       .from(taskYards)
       .where(and(eq(taskYards.userId, userId), eq(taskYards.taskId, taskId)));
     if (existing) return existing;
 
-    const [created] = await db
+    const [created] = await executor
       .insert(taskYards)
       .values({ userId, taskId })
       .onConflictDoNothing()
       .returning();
     if (created) return created;
 
-    const [yard] = await db
+    const [yard] = await executor
       .select()
       .from(taskYards)
       .where(and(eq(taskYards.userId, userId), eq(taskYards.taskId, taskId)));
@@ -120,9 +125,14 @@ export class TaskYardService {
     };
   }
 
-  static async updateTldr(userId: string, taskId: string, tldr: string) {
-    const yard = await this.ensureYard(userId, taskId);
-    const [updated] = await db
+  static async updateTldr(
+    userId: string,
+    taskId: string,
+    tldr: string,
+    executor: DatabaseExecutor = db,
+  ) {
+    const yard = await this.ensureYard(userId, taskId, executor);
+    const [updated] = await executor
       .update(taskYards)
       .set({ tldr: tldr.trim() || null, updatedAt: new Date() })
       .where(and(eq(taskYards.id, yard.id), eq(taskYards.userId, userId)))
@@ -134,11 +144,12 @@ export class TaskYardService {
     userId: string,
     taskId: string,
     input: { title?: string; contentHtml: string },
+    executor: DatabaseExecutor = db,
   ) {
-    const yard = await this.ensureYard(userId, taskId);
+    const yard = await this.ensureYard(userId, taskId, executor);
     const contentHtml = sanitizeRichText(input.contentHtml);
     if (!contentHtml.trim()) throw new ValidationError("Note content is required");
-    const [note] = await db
+    const [note] = await executor
       .insert(taskYardNotes)
       .values({
         userId,
@@ -194,9 +205,14 @@ export class TaskYardService {
     return deleted;
   }
 
-  static async createCard(userId: string, taskId: string, input: RecallCardInput) {
-    const yard = await this.ensureYard(userId, taskId);
-    const [card] = await db
+  static async createCard(
+    userId: string,
+    taskId: string,
+    input: RecallCardInput,
+    executor: DatabaseExecutor = db,
+  ) {
+    const yard = await this.ensureYard(userId, taskId, executor);
+    const [card] = await executor
       .insert(recallCards)
       .values({
         userId,
@@ -214,6 +230,7 @@ export class TaskYardService {
       card.id,
       "created",
       input,
+      executor,
     );
     return card;
   }

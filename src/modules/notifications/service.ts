@@ -1,6 +1,7 @@
 import { Temporal } from "@js-temporal/polyfill";
 import { and, desc, eq, inArray, ne } from "drizzle-orm";
 import { db } from "@/infrastructure/database";
+import type { DatabaseExecutor } from "@/infrastructure/database";
 import { NotFoundError } from "@/shared/errors/domain-error";
 import { DisciplinesService } from "../disciplines/service";
 import { ProjectsService } from "../projects/service";
@@ -53,8 +54,9 @@ export class NotificationService {
     sourceId: string,
     eventType: string,
     eventData?: unknown,
+    executor: DatabaseExecutor = db,
   ) {
-    await db.insert(notificationHistory).values({
+    await executor.insert(notificationHistory).values({
       userId,
       sourceType,
       sourceId,
