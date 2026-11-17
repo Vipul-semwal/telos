@@ -36,6 +36,10 @@ export interface SeedTask {
 
 export interface CurriculumSeed {
   key: string;
+  target?: {
+    disciplineTitle: string;
+    projectTitle: string;
+  };
   discipline: {
     title: string;
     description: string;

@@ -12,6 +12,10 @@ import {
 describe("math roadmap seed fixture", () => {
   it("contains the confirmed one-level curriculum structure", () => {
     expect(MATH_ROADMAP_SEED.key).toBe("math-roadmap-v1");
+    expect(MATH_ROADMAP_SEED.target).toEqual({
+      disciplineTitle: "Tool-master",
+      projectTitle: "math",
+    });
     expect(MATH_ROADMAP_SEED.tasks).toHaveLength(17);
     expect(
       MATH_ROADMAP_SEED.tasks.reduce((count, task) => count + task.subtasks.length, 0),

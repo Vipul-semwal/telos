@@ -10,7 +10,9 @@ async function run() {
     return;
   }
 
-  console.log(`Checking one-time math roadmap seed for user "${TARGET_USERNAME}".`);
+  console.log(
+    `Checking one-time math roadmap seed for user "${TARGET_USERNAME}" under "${MATH_ROADMAP_SEED.target?.disciplineTitle}" → "${MATH_ROADMAP_SEED.target?.projectTitle}".`,
+  );
   const result = await DataSeedService.seedCurriculum(TARGET_USERNAME, MATH_ROADMAP_SEED);
 
   if (result.status === "skipped") {

@@ -505,6 +505,10 @@ const tasks: SeedTask[] = [
 
 export const MATH_ROADMAP_SEED: CurriculumSeed = {
   key: "math-roadmap-v1",
+  target: {
+    disciplineTitle: "Tool-master",
+    projectTitle: "math",
+  },
   discipline: {
     title: "Mathematics Foundations to Calculus",
     description:

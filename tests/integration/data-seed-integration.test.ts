@@ -15,6 +15,7 @@ const SUFFIX = `${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
 const USER_A = `data-seed-a-${SUFFIX}`;
 const USER_B = `data-seed-b-${SUFFIX}`;
 const USER_C = `data-seed-c-${SUFFIX}`;
+const USER_D = `data-seed-d-${SUFFIX}`;
 const SEED_KEY = `integration_seed_${SUFFIX}`;
 
 const fixture: CurriculumSeed = {
@@ -83,6 +84,12 @@ beforeAll(async () => {
       email: `data-seed-c-${SUFFIX}@telos.internal`,
       username: `data_seed_c_${SUFFIX}`,
     },
+    {
+      id: USER_D,
+      name: "Data Seed D",
+      email: `data-seed-d-${SUFFIX}@telos.internal`,
+      username: `data_seed_d_${SUFFIX}`,
+    },
   ]);
 });
 
@@ -90,6 +97,7 @@ afterAll(async () => {
   await db.delete(user).where(eq(user.id, USER_A));
   await db.delete(user).where(eq(user.id, USER_B));
   await db.delete(user).where(eq(user.id, USER_C));
+  await db.delete(user).where(eq(user.id, USER_D));
 });
 
 describe("one-time curriculum seed", () => {
@@ -161,6 +169,20 @@ describe("one-time curriculum seed", () => {
   });
 
   it("imports the complete mathematics curriculum", async () => {
+    const [targetDiscipline] = await db
+      .insert(disciplines)
+      .values({ userId: USER_C, title: "Tool-master" })
+      .returning();
+    const [targetProject] = await db
+      .insert(projects)
+      .values({
+        userId: USER_C,
+        disciplineId: targetDiscipline.id,
+        title: "math",
+        description: "Existing project content must remain unchanged.",
+      })
+      .returning();
+
     const result = await DataSeedService.seedCurriculum(
       `data_seed_c_${SUFFIX}`,
       MATH_ROADMAP_SEED,
@@ -171,6 +193,7 @@ describe("one-time curriculum seed", () => {
     expect(result.subtaskCount).toBe(93);
     expect(result.noteCount).toBe(19);
     expect(result.cardCount).toBe(8);
+    expect(result.projectId).toBe(targetProject.id);
 
     const taskRows = await db
       .select({ id: tasks.id })
@@ -188,5 +211,84 @@ describe("one-time curriculum seed", () => {
     expect(taskRows).toHaveLength(110);
     expect(noteRows).toHaveLength(19);
     expect(cardRows).toHaveLength(8);
+
+    const disciplineRows = await db
+      .select({ id: disciplines.id })
+      .from(disciplines)
+      .where(eq(disciplines.userId, USER_C));
+    const projectRows = await db
+      .select({ id: projects.id, description: projects.description })
+      .from(projects)
+      .where(eq(projects.userId, USER_C));
+    expect(disciplineRows).toHaveLength(1);
+    expect(projectRows).toEqual([
+      {
+        id: targetProject.id,
+        description: "Existing project content must remain unchanged.",
+      },
+    ]);
+  });
+
+  it("appends to an existing project without changing existing task order", async () => {
+    const [targetDiscipline] = await db
+      .insert(disciplines)
+      .values({ userId: USER_D, title: "Tool-master" })
+      .returning();
+    const [targetProject] = await db
+      .insert(projects)
+      .values({
+        userId: USER_D,
+        disciplineId: targetDiscipline.id,
+        title: "math",
+        description: "Pre-existing project",
+      })
+      .returning();
+    const [existingTask] = await db
+      .insert(tasks)
+      .values({
+        userId: USER_D,
+        projectId: targetProject.id,
+        title: "Existing task",
+        orderIndex: 7,
+      })
+      .returning();
+
+    const targetedFixture: CurriculumSeed = {
+      ...fixture,
+      key: `integration_existing_${SUFFIX}`,
+      target: {
+        disciplineTitle: "Tool-master",
+        projectTitle: "math",
+      },
+    };
+    const first = await DataSeedService.seedCurriculum(
+      `data_seed_d_${SUFFIX}`,
+      targetedFixture,
+    );
+    expect(first.status).toBe("seeded");
+    expect(first.projectId).toBe(targetProject.id);
+
+    const second = await DataSeedService.seedCurriculum(
+      `data_seed_d_${SUFFIX}`,
+      targetedFixture,
+    );
+    expect(second.status).toBe("skipped");
+
+    const disciplineRows = await db
+      .select({ id: disciplines.id })
+      .from(disciplines)
+      .where(eq(disciplines.userId, USER_D));
+    const projectRows = await db
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.userId, USER_D));
+    expect(disciplineRows).toEqual([{ id: targetDiscipline.id }]);
+    expect(projectRows).toEqual([{ id: targetProject.id }]);
+
+    const [preservedTask] = await db
+      .select({ id: tasks.id, orderIndex: tasks.orderIndex })
+      .from(tasks)
+      .where(eq(tasks.id, existingTask.id));
+    expect(preservedTask.orderIndex).toBe(7);
   });
 });

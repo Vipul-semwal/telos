@@ -4,7 +4,7 @@ import { projects } from "./schema";
 import { disciplines } from "../disciplines/schema";
 import { tasks } from "../tasks/schema";
 import { timeSessions } from "../time-tracking/schema";
-import { eq, and, count, inArray, sum } from "drizzle-orm";
+import { eq, and, count, inArray, sum, sql } from "drizzle-orm";
 import { CapacityExceededError, NotFoundError, ValidationError } from "@/shared/errors/domain-error";
 import type { CreateProjectInput, UpdateProjectInput, ProjectStatus } from "./validation";
 
@@ -102,6 +102,25 @@ export class ProjectsService {
       .from(projects)
       .where(and(...conditions))
       .orderBy(projects.createdAt);
+  }
+
+  static async findByTitle(
+    userId: string,
+    disciplineId: string,
+    title: string,
+    executor: DatabaseExecutor = db,
+  ) {
+    const [found] = await executor
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.userId, userId),
+          eq(projects.disciplineId, disciplineId),
+          sql`lower(${projects.title}) = lower(${title.trim()})`,
+        ),
+      );
+    return found ?? null;
   }
 
   /**

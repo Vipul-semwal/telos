@@ -2,12 +2,13 @@
 
 ## Context
 
-The mathematics curriculum is being imported once into an existing production user's workspace. Normal application startup and every Vercel deployment must not recreate the curriculum or duplicate records.
+The mathematics curriculum is being imported once into the existing `Tool-master → math` hierarchy in a production user's workspace. Normal application startup and every Vercel deployment must not recreate the curriculum or duplicate records.
 
 ## Decision
 
 - Curriculum content lives in a typed server-side fixture.
 - `DataSeedService` imports it through the existing module services in one database transaction.
+- When a target hierarchy is supplied, the service finds and reuses that discipline and project without renaming, moving, or overwriting them.
 - `data_seed_runs` records completion using a unique `(user_id, seed_key)` constraint.
 - The Vercel build runs `seed:math` on every deployment, but the script exits immediately unless `SEED_MATH_ROADMAP=true`.
 - The seed row and a per-user database row lock prevent duplicate imports across concurrent or repeated runs.

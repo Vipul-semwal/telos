@@ -63,6 +63,16 @@ function validateSeed(seed: CurriculumSeed) {
   if (!/^[a-z0-9][a-z0-9_-]{2,99}$/.test(seed.key)) {
     throw new Error("Seed key must contain only lowercase letters, numbers, underscores, or hyphens.");
   }
+  if (seed.target) {
+    const disciplineTitle = seed.target.disciplineTitle.trim();
+    const projectTitle = seed.target.projectTitle.trim();
+    if (!disciplineTitle || disciplineTitle.length > 255) {
+      throw new Error("Target discipline title must be between 1 and 255 characters.");
+    }
+    if (!projectTitle || projectTitle.length > 255) {
+      throw new Error("Target project title must be between 1 and 255 characters.");
+    }
+  }
 
   createDisciplineSchema.parse(seed.discipline);
   createProjectSchema.parse({
@@ -159,26 +169,50 @@ export class DataSeedService {
         };
       }
 
-      const discipline = await DisciplinesService.create(
-        targetUser.id,
-        seed.discipline,
-        tx,
-      );
-      const project = await ProjectsService.create(
-        targetUser.id,
-        {
-          disciplineId: discipline.id,
-          ...seed.project,
-          initialStatus: "active",
-        },
-        tx,
-      );
+      const discipline = seed.target
+        ? await DisciplinesService.findByTitle(
+            targetUser.id,
+            seed.target.disciplineTitle,
+            tx,
+          )
+        : await DisciplinesService.create(
+            targetUser.id,
+            seed.discipline,
+            tx,
+          );
+      if (!discipline) {
+        throw new Error(
+          `Cannot run ${seed.key}: discipline "${seed.target?.disciplineTitle}" was not found.`,
+        );
+      }
+
+      const project = seed.target
+        ? await ProjectsService.findByTitle(
+            targetUser.id,
+            discipline.id,
+            seed.target.projectTitle,
+            tx,
+          )
+        : await ProjectsService.create(
+            targetUser.id,
+            {
+              disciplineId: discipline.id,
+              ...seed.project,
+              initialStatus: "active",
+            },
+            tx,
+          );
+      if (!project) {
+        throw new Error(
+          `Cannot run ${seed.key}: project "${seed.target?.projectTitle}" was not found under discipline "${seed.target?.disciplineTitle}".`,
+        );
+      }
 
       let subtaskCount = 0;
       let noteCount = 0;
       let cardCount = 0;
 
-      for (const [taskIndex, task] of seed.tasks.entries()) {
+      for (const task of seed.tasks) {
         const createdTask = await TasksService.create(
           targetUser.id,
           {
@@ -187,12 +221,11 @@ export class DataSeedService {
             description: taskDescription(task),
             estimatedDurationSeconds: task.estimatedMinutes * 60,
             priority: task.priority,
-            orderIndex: taskIndex,
           },
           tx,
         );
 
-        for (const [subtaskIndex, subtask] of task.subtasks.entries()) {
+        for (const subtask of task.subtasks) {
           await TasksService.create(
             targetUser.id,
             {
@@ -201,7 +234,6 @@ export class DataSeedService {
               title: subtask.title,
               description: subtask.description,
               estimatedDurationSeconds: subtask.estimatedMinutes * 60,
-              orderIndex: subtaskIndex,
             },
             tx,
           );
@@ -260,6 +292,7 @@ export class DataSeedService {
         metadata: {
           disciplineId: discipline.id,
           projectId: project.id,
+          target: seed.target ?? null,
           taskCount: seed.tasks.length,
           subtaskCount,
           noteCount,

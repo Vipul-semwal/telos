@@ -1,7 +1,7 @@
 import { db } from "@/infrastructure/database";
 import type { DatabaseExecutor } from "@/infrastructure/database";
 import { disciplines } from "./schema";
-import { eq, and, count } from "drizzle-orm";
+import { eq, and, count, sql } from "drizzle-orm";
 import { CapacityExceededError, NotFoundError, ForbiddenError } from "@/shared/errors/domain-error";
 import type { CreateDisciplineInput, UpdateDisciplineInput } from "./validation";
 
@@ -65,6 +65,23 @@ export class DisciplinesService {
       .from(disciplines)
       .where(and(...conditions))
       .orderBy(disciplines.createdAt);
+  }
+
+  static async findByTitle(
+    userId: string,
+    title: string,
+    executor: DatabaseExecutor = db,
+  ) {
+    const [found] = await executor
+      .select()
+      .from(disciplines)
+      .where(
+        and(
+          eq(disciplines.userId, userId),
+          sql`lower(${disciplines.title}) = lower(${title.trim()})`,
+        ),
+      );
+    return found ?? null;
   }
 
   /**
