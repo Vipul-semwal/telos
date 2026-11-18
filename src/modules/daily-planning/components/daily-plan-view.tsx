@@ -2,7 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDots, Clock, Plus, Trash } from "@phosphor-icons/react";
+import {
+  CalendarDots,
+  CaretLeft,
+  Clock,
+  MagnifyingGlass,
+  Plus,
+  Trash,
+} from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -22,11 +29,16 @@ export interface PlanItemRow {
   sortOrder: number;
 }
 
-interface CandidateTask {
+export interface CandidateTask {
   id: string;
   title: string;
+  projectId: string;
   projectTitle: string;
+  parentTaskId: string | null;
+  priority: "low" | "medium" | "high";
+  status: "todo" | "in_progress";
   estimatedDurationSeconds: number;
+  orderIndex: number;
 }
 
 interface DailyPlanViewProps {
@@ -62,6 +74,18 @@ const STATUS_LABEL: Record<PlanItemStatus, string> = {
 const selectClass =
   "h-8 rounded-lg bg-surface-raised/70 px-2 text-caption text-foreground-primary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.09)] outline-none transition-colors hover:bg-surface-raised focus-visible:ring-2 focus-visible:ring-accent/40";
 
+type PriorityFilter = "all" | "high" | "medium" | "low";
+type TypeFilter = "all" | "task" | "subtask";
+type SortMode = "recommended" | "priority" | "shortest" | "longest" | "title";
+
+interface CandidateProject {
+  id: string;
+  title: string;
+  tasks: CandidateTask[];
+}
+
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;
+
 export function DailyPlanView({ date, initialItems, candidateTasks }: DailyPlanViewProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -69,12 +93,93 @@ export function DailyPlanView({ date, initialItems, candidateTasks }: DailyPlanV
   const [error, setError] = React.useState<string | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [addMinutes, setAddMinutes] = React.useState<string>("");
+  const [selectedProjectId, setSelectedProjectId] = React.useState<string | null>(null);
+  const [search, setSearch] = React.useState("");
+  const [priorityFilter, setPriorityFilter] = React.useState<PriorityFilter>("all");
+  const [typeFilter, setTypeFilter] = React.useState<TypeFilter>("all");
+  const [sortMode, setSortMode] = React.useState<SortMode>("recommended");
 
   const allocatedSeconds = items.reduce((sum, item) => sum + item.plannedDurationSeconds, 0);
   const remainingSeconds = Math.max(0, MAX_DAILY_PLANNED_SECONDS - allocatedSeconds);
   const isCapacityReached = allocatedSeconds >= MAX_DAILY_PLANNED_SECONDS;
-  const plannedTaskIds = new Set(items.map((item) => item.taskId));
-  const availableTasks = candidateTasks.filter((task) => !plannedTaskIds.has(task.id));
+  const plannedTaskIds = React.useMemo(
+    () => new Set(items.map((item) => item.taskId)),
+    [items],
+  );
+  const availableTasks = React.useMemo(
+    () => candidateTasks.filter((task) => !plannedTaskIds.has(task.id)),
+    [candidateTasks, plannedTaskIds],
+  );
+  const candidateProjects = React.useMemo<CandidateProject[]>(() => {
+    const grouped = new Map<string, CandidateProject>();
+    for (const task of availableTasks) {
+      const existing = grouped.get(task.projectId);
+      if (existing) {
+        existing.tasks.push(task);
+      } else {
+        grouped.set(task.projectId, {
+          id: task.projectId,
+          title: task.projectTitle,
+          tasks: [task],
+        });
+      }
+    }
+    return [...grouped.values()].sort((a, b) => a.title.localeCompare(b.title));
+  }, [availableTasks]);
+  const selectedProject =
+    candidateProjects.find((project) => project.id === selectedProjectId) ?? null;
+  const filteredProjectTasks = React.useMemo(() => {
+    if (!selectedProject) return [];
+    const query = search.trim().toLowerCase();
+    const filtered = selectedProject.tasks.filter((task) => {
+      const matchesSearch = !query || task.title.toLowerCase().includes(query);
+      const matchesPriority =
+        priorityFilter === "all" || task.priority === priorityFilter;
+      const matchesType =
+        typeFilter === "all" ||
+        (typeFilter === "subtask" ? Boolean(task.parentTaskId) : !task.parentTaskId);
+      return matchesSearch && matchesPriority && matchesType;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (sortMode === "priority") {
+        return (
+          PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+          a.title.localeCompare(b.title)
+        );
+      }
+      if (sortMode === "shortest" || sortMode === "longest") {
+        if (!a.estimatedDurationSeconds && !b.estimatedDurationSeconds) {
+          return a.title.localeCompare(b.title);
+        }
+        if (!a.estimatedDurationSeconds) return 1;
+        if (!b.estimatedDurationSeconds) return -1;
+        return sortMode === "shortest"
+          ? a.estimatedDurationSeconds - b.estimatedDurationSeconds ||
+              a.title.localeCompare(b.title)
+          : b.estimatedDurationSeconds - a.estimatedDurationSeconds ||
+              a.title.localeCompare(b.title);
+      }
+      if (sortMode === "title") {
+        return a.title.localeCompare(b.title);
+      }
+      return a.orderIndex - b.orderIndex || a.title.localeCompare(b.title);
+    });
+  }, [priorityFilter, search, selectedProject, sortMode, typeFilter]);
+
+  React.useEffect(() => {
+    if (selectedProjectId && !candidateProjects.some((project) => project.id === selectedProjectId)) {
+      setSelectedProjectId(null);
+    }
+  }, [candidateProjects, selectedProjectId]);
+
+  const openProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setSearch("");
+    setPriorityFilter("all");
+    setTypeFilter("all");
+    setSortMode("recommended");
+  };
 
   const refreshPlan = React.useCallback(async () => {
     const res = await fetch(`/api/daily-planning?date=${encodeURIComponent(date)}`);
@@ -314,9 +419,16 @@ export function DailyPlanView({ date, initialItems, candidateTasks }: DailyPlanV
 
         <section className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-heading font-semibold text-foreground-primary">
-              Available tasks
-            </h2>
+            <div>
+              <h2 className="text-heading font-semibold text-foreground-primary">
+                {selectedProject ? selectedProject.title : "Choose a project"}
+              </h2>
+              <p className="text-caption text-foreground-muted">
+                {selectedProject
+                  ? `${filteredProjectTasks.length} matching task${filteredProjectTasks.length === 1 ? "" : "s"}`
+                  : `${candidateProjects.length} project${candidateProjects.length === 1 ? "" : "s"} with open work`}
+              </p>
+            </div>
             <div className="flex items-center gap-1.5">
               <label htmlFor="default-minutes" className="text-caption text-foreground-muted">
                 Default
@@ -334,41 +446,145 @@ export function DailyPlanView({ date, initialItems, candidateTasks }: DailyPlanV
             </div>
           </div>
 
-          {availableTasks.length === 0 ? (
-            <EmptyState
-              kicker="No available tasks"
-              title="Everything is planned"
-              description="All open tasks are already in today's plan, or none exist. Create tasks from a project to plan them here."
-            />
-          ) : (
-            <div className="space-y-2.5">
-              {availableTasks.map((task) => (
-                <div
-                  key={task.id}
-                  className="surface-panel flex items-center justify-between gap-3 rounded-2xl p-4"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-small font-medium text-foreground-primary">
-                      {task.title}
-                    </p>
-                    <p className="truncate font-mono text-caption text-foreground-muted">
-                      {task.projectTitle}
-                      {task.estimatedDurationSeconds > 0
-                        ? ` · ETA ${formatSecondsToHuman(task.estimatedDurationSeconds)}`
-                        : ""}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleAdd(task)}
-                    disabled={busyId === task.id || isCapacityReached}
+          {!selectedProject ? (
+            candidateProjects.length === 0 ? (
+              <EmptyState
+                kicker="No available work"
+                title="Nothing left to plan"
+                description="Open tasks from active projects that are not already in today's plan will appear here."
+              />
+            ) : (
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                {candidateProjects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => openProject(project.id)}
+                    className="surface-panel group flex min-h-24 flex-col justify-between rounded-2xl p-4 text-left transition-colors hover:bg-surface-hover/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
                   >
-                    <Plus size={14} weight="bold" />
-                    Plan
-                  </Button>
+                    <span className="line-clamp-2 text-small font-medium text-foreground-primary">
+                      {project.title}
+                    </span>
+                    <span className="mt-3 flex items-center justify-between gap-2">
+                      <span className="font-mono text-caption tabular-nums text-foreground-muted">
+                        {project.tasks.length} available
+                      </span>
+                      <span className="text-caption font-medium text-accent transition-transform group-hover:translate-x-0.5">
+                        Open
+                      </span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )
+          ) : (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setSelectedProjectId(null)}
+                className="inline-flex items-center gap-1.5 text-caption font-medium text-foreground-secondary transition-colors hover:text-foreground-primary"
+              >
+                <CaretLeft size={13} />
+                All projects
+              </button>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <label className="relative col-span-1 sm:col-span-2">
+                  <span className="sr-only">Search tasks in {selectedProject.title}</span>
+                  <MagnifyingGlass
+                    size={15}
+                    className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted"
+                  />
+                  <input
+                    type="search"
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="Search this project's tasks"
+                    className="h-9 w-full rounded-lg bg-surface-raised/70 pl-9 pr-3 text-caption text-foreground-primary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.09)] outline-none placeholder:text-foreground-quaternary focus-visible:ring-2 focus-visible:ring-accent/40"
+                  />
+                </label>
+                <select
+                  aria-label="Filter tasks by priority"
+                  value={priorityFilter}
+                  onChange={(event) => setPriorityFilter(event.target.value as PriorityFilter)}
+                  className={selectClass}
+                >
+                  <option value="all">All priorities</option>
+                  <option value="high">High priority</option>
+                  <option value="medium">Medium priority</option>
+                  <option value="low">Low priority</option>
+                </select>
+                <select
+                  aria-label="Filter tasks by type"
+                  value={typeFilter}
+                  onChange={(event) => setTypeFilter(event.target.value as TypeFilter)}
+                  className={selectClass}
+                >
+                  <option value="all">Tasks and subtasks</option>
+                  <option value="task">Tasks only</option>
+                  <option value="subtask">Subtasks only</option>
+                </select>
+                <select
+                  aria-label="Sort tasks"
+                  value={sortMode}
+                  onChange={(event) => setSortMode(event.target.value as SortMode)}
+                  className={`${selectClass} sm:col-span-2`}
+                >
+                  <option value="recommended">Project order</option>
+                  <option value="priority">Priority first</option>
+                  <option value="shortest">Shortest first</option>
+                  <option value="longest">Longest first</option>
+                  <option value="title">Title A–Z</option>
+                </select>
+              </div>
+
+              {filteredProjectTasks.length === 0 ? (
+                <EmptyState
+                  kicker="No matches"
+                  title="No tasks match these filters"
+                  description="Clear the search or choose different priority and task-type filters."
+                />
+              ) : (
+                <div className="space-y-2.5">
+                  {filteredProjectTasks.map((task) => (
+                    <div
+                      key={task.id}
+                      className="surface-panel flex items-center justify-between gap-3 rounded-2xl p-4"
+                    >
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <p className="truncate text-small font-medium text-foreground-primary">
+                            {task.title}
+                          </p>
+                          {task.parentTaskId && (
+                            <Badge variant="neutral">Subtask</Badge>
+                          )}
+                        </div>
+                        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-caption text-foreground-muted">
+                          <span>{task.priority} priority</span>
+                          <span aria-hidden="true">·</span>
+                          <span>{task.status === "in_progress" ? "In progress" : "To do"}</span>
+                          {task.estimatedDurationSeconds > 0 && (
+                            <>
+                              <span aria-hidden="true">·</span>
+                              <span>ETA {formatSecondsToHuman(task.estimatedDurationSeconds)}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleAdd(task)}
+                        disabled={busyId === task.id || isCapacityReached}
+                      >
+                        <Plus size={14} weight="bold" />
+                        Plan
+                      </Button>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </section>

@@ -1,8 +1,14 @@
 import { db } from "@/infrastructure/database";
 import { dailyPlans, dailyPlanItems } from "./schema";
 import { tasks } from "../tasks/schema";
-import { eq, and, sql } from "drizzle-orm";
-import { CapacityExceededError, NotFoundError, ConflictError } from "@/shared/errors/domain-error";
+import { projects } from "../projects/schema";
+import { eq, and, sql, ne, isNull } from "drizzle-orm";
+import {
+  CapacityExceededError,
+  NotFoundError,
+  ConflictError,
+  ValidationError,
+} from "@/shared/errors/domain-error";
 import { MAX_DAILY_PLANNED_SECONDS } from "@/shared/utils/duration";
 import type { AddTaskToPlanInput, UpdatePlanItemInput } from "./validation";
 
@@ -81,6 +87,56 @@ export class DailyPlanningService {
   }
 
   /**
+   * List tasks eligible to be added to a specific daily plan.
+   * Completed and cancelled tasks, tasks already planned for the day,
+   * and tasks from inactive projects are excluded server-side.
+   */
+  static async listEligibleTasks(userId: string, date: string) {
+    const plan = await this.getOrCreatePlan(userId, date);
+
+    return db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        projectId: projects.id,
+        projectTitle: projects.title,
+        parentTaskId: tasks.parentTaskId,
+        priority: tasks.priority,
+        status: tasks.status,
+        estimatedDurationSeconds: tasks.estimatedDurationSeconds,
+        orderIndex: tasks.orderIndex,
+      })
+      .from(tasks)
+      .innerJoin(
+        projects,
+        and(eq(tasks.projectId, projects.id), eq(projects.userId, userId)),
+      )
+      .leftJoin(
+        dailyPlanItems,
+        and(
+          eq(dailyPlanItems.taskId, tasks.id),
+          eq(dailyPlanItems.dailyPlanId, plan.id),
+          eq(dailyPlanItems.userId, userId),
+        ),
+      )
+      .where(
+        and(
+          eq(tasks.userId, userId),
+          eq(projects.status, "active"),
+          ne(tasks.status, "completed"),
+          ne(tasks.status, "cancelled"),
+          isNull(dailyPlanItems.id),
+        ),
+      )
+      .orderBy(
+        projects.title,
+        sql`CASE WHEN ${tasks.parentTaskId} IS NULL THEN 0 ELSE 1 END`,
+        tasks.orderIndex,
+        tasks.createdAt,
+      );
+  }
+
+  /**
    * Add a task to the daily plan.
    * Enforces rules:
    * 1. Task must belong to the user.
@@ -90,12 +146,25 @@ export class DailyPlanningService {
   static async addTaskToPlan(userId: string, input: AddTaskToPlanInput) {
     // 1. Verify task ownership
     const [task] = await db
-      .select()
+      .select({
+        task: tasks,
+        projectStatus: projects.status,
+      })
       .from(tasks)
+      .innerJoin(
+        projects,
+        and(eq(tasks.projectId, projects.id), eq(projects.userId, userId)),
+      )
       .where(and(eq(tasks.id, input.taskId), eq(tasks.userId, userId)));
 
     if (!task) {
       throw new NotFoundError("Task", input.taskId);
+    }
+    if (task.task.status === "completed" || task.task.status === "cancelled") {
+      throw new ValidationError("Completed or cancelled tasks cannot be added to a daily plan.");
+    }
+    if (task.projectStatus !== "active") {
+      throw new ValidationError("Tasks from paused, completed, or archived projects cannot be planned.");
     }
 
     const plan = await this.getOrCreatePlan(userId, input.date);
@@ -112,7 +181,8 @@ export class DailyPlanningService {
 
     // 3. Determine planned duration
     const plannedSeconds =
-      input.plannedDurationSeconds ?? (task.estimatedDurationSeconds > 0 ? task.estimatedDurationSeconds : 1800);
+      input.plannedDurationSeconds ??
+      (task.task.estimatedDurationSeconds > 0 ? task.task.estimatedDurationSeconds : 1800);
 
     // 4. Check daily capacity constraint (max 4 hours = 14,400 seconds)
     const currentItems = await db

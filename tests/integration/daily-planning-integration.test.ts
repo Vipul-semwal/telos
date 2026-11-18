@@ -6,10 +6,15 @@ import { projects } from "@/modules/projects/schema";
 import { tasks } from "@/modules/tasks/schema";
 import { dailyPlans, dailyPlanItems } from "@/modules/daily-planning/schema";
 import { DailyPlanningService } from "@/modules/daily-planning/service";
-import { CapacityExceededError, ConflictError, NotFoundError } from "@/shared/errors/domain-error";
+import {
+  CapacityExceededError,
+  ConflictError,
+  NotFoundError,
+  ValidationError,
+} from "@/shared/errors/domain-error";
 import { MAX_DAILY_PLANNED_SECONDS } from "@/shared/utils/duration";
 import { getTodayDateString } from "@/shared/utils/date";
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 const SUFFIX = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 const USER_A_ID = `dp-int-a-${SUFFIX}`;
@@ -187,6 +192,122 @@ describe("DailyPlanningService Integration", () => {
     const plan = await DailyPlanningService.getPlanWithItems(USER_A_ID, DATE);
     expect(plan.items).toHaveLength(0);
     expect(plan.capacity.allocatedSeconds).toBe(0);
+  });
+
+  it("lists only open tasks from active projects and removes planned tasks", async () => {
+    const [completedTask] = await db
+      .insert(tasks)
+      .values({
+        userId: USER_A_ID,
+        projectId: projectAId,
+        title: "Completed task",
+        status: "completed",
+      })
+      .returning();
+    const [cancelledTask] = await db
+      .insert(tasks)
+      .values({
+        userId: USER_A_ID,
+        projectId: projectAId,
+        title: "Cancelled task",
+        status: "cancelled",
+      })
+      .returning();
+    const [pausedProject] = await db
+      .insert(projects)
+      .values({
+        userId: USER_A_ID,
+        disciplineId: (
+          await db
+            .select({ disciplineId: projects.disciplineId })
+            .from(projects)
+            .where(eq(projects.id, projectAId))
+        )[0].disciplineId,
+        title: "Paused project",
+        status: "paused",
+      })
+      .returning();
+    await db.insert(tasks).values({
+      userId: USER_A_ID,
+      projectId: pausedProject.id,
+      title: "Paused project task",
+    });
+
+    let eligible = await DailyPlanningService.listEligibleTasks(USER_A_ID, DATE);
+    expect(eligible.map((task) => task.id).sort()).toEqual([taskAId, taskA2Id].sort());
+    expect(eligible.some((task) => task.id === completedTask.id)).toBe(false);
+    expect(eligible.some((task) => task.id === cancelledTask.id)).toBe(false);
+
+    await DailyPlanningService.addTaskToPlan(USER_A_ID, {
+      date: DATE,
+      taskId: taskAId,
+      plannedDurationSeconds: 1800,
+    });
+    eligible = await DailyPlanningService.listEligibleTasks(USER_A_ID, DATE);
+    expect(eligible.map((task) => task.id)).toEqual([taskA2Id]);
+  });
+
+  it("rejects adding completed, cancelled, or inactive-project tasks", async () => {
+    const [discipline] = await db
+      .select({ disciplineId: projects.disciplineId })
+      .from(projects)
+      .where(eq(projects.id, projectAId));
+    const [pausedProject] = await db
+      .insert(projects)
+      .values({
+        userId: USER_A_ID,
+        disciplineId: discipline.disciplineId,
+        title: "Paused project",
+        status: "paused",
+      })
+      .returning();
+    const [pausedTask] = await db
+      .insert(tasks)
+      .values({
+        userId: USER_A_ID,
+        projectId: pausedProject.id,
+        title: "Paused project task",
+      })
+      .returning();
+    const [completedTask] = await db
+      .insert(tasks)
+      .values({
+        userId: USER_A_ID,
+        projectId: projectAId,
+        title: "Completed task",
+        status: "completed",
+      })
+      .returning();
+    const [cancelledTask] = await db
+      .insert(tasks)
+      .values({
+        userId: USER_A_ID,
+        projectId: projectAId,
+        title: "Cancelled task",
+        status: "cancelled",
+      })
+      .returning();
+
+    await expect(
+      DailyPlanningService.addTaskToPlan(USER_A_ID, {
+        date: DATE,
+        taskId: completedTask.id,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    await expect(
+      DailyPlanningService.addTaskToPlan(USER_A_ID, {
+        date: DATE,
+        taskId: cancelledTask.id,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    await expect(
+      DailyPlanningService.addTaskToPlan(USER_A_ID, {
+        date: DATE,
+        taskId: pausedTask.id,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("blocks cross-tenant task references and mutations", async () => {
