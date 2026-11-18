@@ -2,11 +2,27 @@ import { db } from "@/infrastructure/database";
 import { timeSessions } from "./schema";
 import { tasks, taskHistory } from "../tasks/schema";
 import { eq, and, isNull, isNotNull, sum, count, desc } from "drizzle-orm";
-import { ConflictError, NotFoundError } from "@/shared/errors/domain-error";
+import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/domain-error";
 import { calculateEtaStatus } from "@/shared/utils/duration";
+import { getTodayDateString } from "@/shared/utils/date";
+import { DailyPlanningService } from "../daily-planning/service";
 import type { StartTimerInput, ManualSessionInput } from "./validation";
 
 export class TimeTrackingService {
+  private static async assertTaskIsInTodayPlan(userId: string, taskId: string) {
+    const plan = await DailyPlanningService.getPlanWithItems(
+      userId,
+      getTodayDateString(),
+    );
+    const item = plan.items.find((candidate) => candidate.taskId === taskId);
+
+    if (!item || (item.status !== "planned" && item.status !== "in_progress")) {
+      throw new ValidationError(
+        "Only tasks in today's daily plan can be tracked. Add the task to Today's Plan first.",
+      );
+    }
+  }
+
   /**
    * Find any currently running timer for the user.
    */
@@ -101,6 +117,10 @@ export class TimeTrackingService {
     if (!task) {
       throw new NotFoundError("Task", input.taskId);
     }
+    if (task.status === "completed" || task.status === "cancelled") {
+      throw new ValidationError("Completed or cancelled tasks cannot be tracked.");
+    }
+    await this.assertTaskIsInTodayPlan(userId, input.taskId);
 
     // 2. Prevent multiple simultaneous active timers
     const active = await this.getActiveTimer(userId);
@@ -196,6 +216,10 @@ export class TimeTrackingService {
     if (!task) {
       throw new NotFoundError("Task", input.taskId);
     }
+    if (task.status === "completed" || task.status === "cancelled") {
+      throw new ValidationError("Completed or cancelled tasks cannot be tracked.");
+    }
+    await this.assertTaskIsInTodayPlan(userId, input.taskId);
 
     const now = new Date();
     const startTime = new Date(now.getTime() - input.durationSeconds * 1000);

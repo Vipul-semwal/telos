@@ -204,7 +204,7 @@ export function TimeTrackingView({
           ) : (
             <div className="space-y-4">
               <p className="text-small text-foreground-secondary">
-                Select an open task and start the stopwatch. Only one timer may run at a time.
+                Select a task from today&apos;s plan and start the stopwatch. Only one timer may run at a time.
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 <select
@@ -215,7 +215,7 @@ export function TimeTrackingView({
                   className="h-10 min-w-[200px] flex-1 rounded-lg bg-surface-raised/70 px-3 text-small text-foreground-primary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.09)] outline-none transition-colors focus-visible:ring-2 focus-visible:ring-accent/40 disabled:opacity-40"
                 >
                   {tasks.length === 0 ? (
-                    <option value="">No open tasks available</option>
+                    <option value="">No tasks in today&apos;s plan</option>
                   ) : (
                     tasks.map((task) => (
                       <option key={task.id} value={task.id}>

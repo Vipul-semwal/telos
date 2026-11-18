@@ -6,8 +6,10 @@ import { projects } from "@/modules/projects/schema";
 import { tasks, taskHistory } from "@/modules/tasks/schema";
 import { timeSessions } from "@/modules/time-tracking/schema";
 import { TimeTrackingService } from "@/modules/time-tracking/service";
-import { ConflictError, NotFoundError } from "@/shared/errors/domain-error";
-import { inArray, eq } from "drizzle-orm";
+import { dailyPlans, dailyPlanItems } from "@/modules/daily-planning/schema";
+import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/domain-error";
+import { getTodayDateString } from "@/shared/utils/date";
+import { and, inArray, eq } from "drizzle-orm";
 
 const SUFFIX = `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`;
 const USER_A_ID = `tt-int-a-${SUFFIX}`;
@@ -15,6 +17,7 @@ const USER_B_ID = `tt-int-b-${SUFFIX}`;
 
 let taskAId: string;
 let taskA2Id: string;
+let taskA3Id: string;
 let taskBId: string;
 
 async function seedBase() {
@@ -74,18 +77,54 @@ async function seedBase() {
       estimatedDurationSeconds: 3600,
     })
     .returning();
+  const [taskA3] = await db
+    .insert(tasks)
+    .values({
+      userId: USER_A_ID,
+      projectId: projA.id,
+      title: "Unplanned Task A3",
+      estimatedDurationSeconds: 1200,
+    })
+    .returning();
   const [taskB] = await db
     .insert(tasks)
     .values({ userId: USER_B_ID, projectId: projB.id, title: "Timed Task B" })
     .returning();
   taskAId = taskA.id;
   taskA2Id = taskA2.id;
+  taskA3Id = taskA3.id;
   taskBId = taskB.id;
+
+  const [plan] = await db
+    .insert(dailyPlans)
+    .values({
+      userId: USER_A_ID,
+      planDate: getTodayDateString(),
+    })
+    .returning();
+  await db.insert(dailyPlanItems).values([
+    {
+      dailyPlanId: plan.id,
+      userId: USER_A_ID,
+      taskId: taskAId,
+      plannedDurationSeconds: 600,
+      status: "planned",
+    },
+    {
+      dailyPlanId: plan.id,
+      userId: USER_A_ID,
+      taskId: taskA2Id,
+      plannedDurationSeconds: 3600,
+      status: "planned",
+    },
+  ]);
 }
 
 beforeEach(async () => {
   await db.delete(timeSessions).where(inArray(timeSessions.userId, [USER_A_ID, USER_B_ID]));
   await db.delete(taskHistory).where(inArray(taskHistory.userId, [USER_A_ID, USER_B_ID]));
+  await db.delete(dailyPlanItems).where(inArray(dailyPlanItems.userId, [USER_A_ID, USER_B_ID]));
+  await db.delete(dailyPlans).where(inArray(dailyPlans.userId, [USER_A_ID, USER_B_ID]));
   await db.delete(tasks).where(inArray(tasks.userId, [USER_A_ID, USER_B_ID]));
   await db.delete(projects).where(inArray(projects.userId, [USER_A_ID, USER_B_ID]));
   await db.delete(disciplines).where(inArray(disciplines.userId, [USER_A_ID, USER_B_ID]));
@@ -159,6 +198,44 @@ describe("TimeTrackingService Integration", () => {
 
     const active = await TimeTrackingService.getActiveTimer(USER_A_ID);
     expect(active?.totalRecordedSeconds).toBe(900);
+  });
+
+  it("only tracks tasks in today's active plan", async () => {
+    await expect(
+      TimeTrackingService.startTimer(USER_A_ID, { taskId: taskA3Id }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    await expect(
+      TimeTrackingService.logManualSession(USER_A_ID, {
+        taskId: taskA3Id,
+        durationSeconds: 600,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    await db
+      .update(tasks)
+      .set({ status: "completed", completedAt: new Date() })
+      .where(eq(tasks.id, taskAId));
+    await expect(
+      TimeTrackingService.startTimer(USER_A_ID, { taskId: taskAId }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    await db
+      .update(tasks)
+      .set({ status: "todo", completedAt: null })
+      .where(eq(tasks.id, taskAId));
+    await db
+      .update(dailyPlanItems)
+      .set({ status: "deferred" })
+      .where(
+        and(
+          eq(dailyPlanItems.userId, USER_A_ID),
+          eq(dailyPlanItems.taskId, taskAId),
+        ),
+      );
+    await expect(
+      TimeTrackingService.startTimer(USER_A_ID, { taskId: taskAId }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it("prevents cross-tenant timer control", async () => {

@@ -60,7 +60,10 @@ export class DailyPlanningService {
         taskId: dailyPlanItems.taskId,
         taskTitle: tasks.title,
         taskDescription: tasks.description,
+        taskStatus: tasks.status,
         taskEstimatedSeconds: tasks.estimatedDurationSeconds,
+        projectId: projects.id,
+        projectTitle: projects.title,
         plannedDurationSeconds: dailyPlanItems.plannedDurationSeconds,
         status: dailyPlanItems.status,
         sortOrder: dailyPlanItems.sortOrder,
@@ -68,6 +71,10 @@ export class DailyPlanningService {
       })
       .from(dailyPlanItems)
       .innerJoin(tasks, eq(dailyPlanItems.taskId, tasks.id))
+      .innerJoin(
+        projects,
+        and(eq(tasks.projectId, projects.id), eq(projects.userId, userId)),
+      )
       .where(and(eq(dailyPlanItems.dailyPlanId, plan.id), eq(dailyPlanItems.userId, userId)))
       .orderBy(dailyPlanItems.sortOrder, dailyPlanItems.createdAt);
 

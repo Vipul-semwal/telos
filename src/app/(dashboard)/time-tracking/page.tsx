@@ -1,7 +1,7 @@
 ﻿import { getServerSession } from "@/infrastructure/authentication/session";
 import { TimeTrackingService } from "@/modules/time-tracking/service";
-import { TasksService } from "@/modules/tasks/service";
-import { ProjectsService } from "@/modules/projects/service";
+import { DailyPlanningService } from "@/modules/daily-planning/service";
+import { getTodayDateString } from "@/shared/utils/date";
 import { PageHeader } from "@/components/ui/page-header";
 import { Badge } from "@/components/ui/badge";
 import { TimeTrackingView } from "@/modules/time-tracking/components/time-tracking-view";
@@ -9,23 +9,27 @@ import { TimeTrackingView } from "@/modules/time-tracking/components/time-tracki
 export default async function TimeTrackingPage() {
   const session = await getServerSession();
   const userId = session!.user.id;
+  const today = getTodayDateString();
 
-  const [activeTimer, sessions, totals, allTasks, projects] = await Promise.all([
+  const [activeTimer, sessions, totals, planData] = await Promise.all([
     TimeTrackingService.getActiveTimer(userId),
     TimeTrackingService.listRecentSessions(userId),
     TimeTrackingService.getTotalRecorded(userId),
-    TasksService.list(userId),
-    ProjectsService.list(userId),
+    DailyPlanningService.getPlanWithItems(userId, today),
   ]);
 
-  const projectTitles = new Map(projects.map((p) => [p.id, p.title]));
-  const openTasks = allTasks
-    .filter((t) => t.status !== "completed" && t.status !== "cancelled")
-    .map((t) => ({
-      id: t.id,
-      title: t.title,
-      projectTitle: projectTitles.get(t.projectId) ?? "PROJECT",
-      estimatedDurationSeconds: t.estimatedDurationSeconds,
+  const todaysTasks = planData.items
+    .filter(
+      (item) =>
+        (item.status === "planned" || item.status === "in_progress") &&
+        item.taskStatus !== "completed" &&
+        item.taskStatus !== "cancelled",
+    )
+    .map((item) => ({
+      id: item.taskId,
+      title: item.taskTitle,
+      projectTitle: item.projectTitle,
+      estimatedDurationSeconds: item.taskEstimatedSeconds,
     }));
 
   return (
@@ -33,7 +37,7 @@ export default async function TimeTrackingPage() {
       <PageHeader
         moduleCode="Recording"
         title="Time tracking"
-        description="Stopwatch tracking at the task level. Exactly one active timer is permitted per user. Stopping a timer records the session without completing the task."
+        description="Stopwatch tracking at the task level for tasks in today's plan. Exactly one active timer is permitted per user. Stopping a timer records the session without completing the task."
         badge={
           <Badge variant={activeTimer ? "accent" : "neutral"}>
             {activeTimer ? "Active session" : "Idle"}
@@ -45,7 +49,7 @@ export default async function TimeTrackingPage() {
         initialActiveTimer={activeTimer}
         initialSessions={sessions}
         initialTotals={totals}
-        tasks={openTasks}
+        tasks={todaysTasks}
       />
     </div>
   );
