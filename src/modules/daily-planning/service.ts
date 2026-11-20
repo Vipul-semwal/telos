@@ -1,7 +1,9 @@
 import { db } from "@/infrastructure/database";
+import type { DatabaseExecutor } from "@/infrastructure/database";
 import { dailyPlans, dailyPlanItems } from "./schema";
 import { tasks } from "../tasks/schema";
 import { projects } from "../projects/schema";
+import { routineOccurrences } from "../routines/schema";
 import { eq, and, sql, ne, isNull } from "drizzle-orm";
 import {
   CapacityExceededError,
@@ -16,8 +18,12 @@ export class DailyPlanningService {
   /**
    * Get or create a daily plan record for a given date.
    */
-  static async getOrCreatePlan(userId: string, date: string) {
-    const [existing] = await db
+  static async getOrCreatePlan(
+    userId: string,
+    date: string,
+    executor: DatabaseExecutor = db,
+  ) {
+    const [existing] = await executor
       .select()
       .from(dailyPlans)
       .where(and(eq(dailyPlans.userId, userId), eq(dailyPlans.planDate, date)));
@@ -26,7 +32,7 @@ export class DailyPlanningService {
       return existing;
     }
 
-    const [created] = await db
+    const [created] = await executor
       .insert(dailyPlans)
       .values({
         userId,
@@ -40,7 +46,7 @@ export class DailyPlanningService {
     }
 
     // Fallback if concurrent insert
-    const [fetched] = await db
+    const [fetched] = await executor
       .select()
       .from(dailyPlans)
       .where(and(eq(dailyPlans.userId, userId), eq(dailyPlans.planDate, date)));
@@ -64,6 +70,8 @@ export class DailyPlanningService {
         taskEstimatedSeconds: tasks.estimatedDurationSeconds,
         projectId: projects.id,
         projectTitle: projects.title,
+        sourceType: dailyPlanItems.sourceType,
+        routineOccurrenceId: dailyPlanItems.routineOccurrenceId,
         plannedDurationSeconds: dailyPlanItems.plannedDurationSeconds,
         status: dailyPlanItems.status,
         sortOrder: dailyPlanItems.sortOrder,
@@ -130,6 +138,7 @@ export class DailyPlanningService {
         and(
           eq(tasks.userId, userId),
           eq(projects.status, "active"),
+          eq(tasks.kind, "one_off"),
           ne(tasks.status, "completed"),
           ne(tasks.status, "cancelled"),
           isNull(dailyPlanItems.id),
@@ -150,9 +159,18 @@ export class DailyPlanningService {
    * 2. Total planned duration cannot exceed 4 hours (14,400 seconds).
    * 3. Task cannot already exist in the same day's plan.
    */
-  static async addTaskToPlan(userId: string, input: AddTaskToPlanInput) {
+  static async addTaskToPlan(
+    userId: string,
+    input: AddTaskToPlanInput,
+    options: {
+      executor?: DatabaseExecutor;
+      sourceType?: "manual" | "routine";
+      routineOccurrenceId?: string;
+    } = {},
+  ) {
+    const executor = options.executor ?? db;
     // 1. Verify task ownership
-    const [task] = await db
+    const [task] = await executor
       .select({
         task: tasks,
         projectStatus: projects.status,
@@ -173,11 +191,16 @@ export class DailyPlanningService {
     if (task.projectStatus !== "active") {
       throw new ValidationError("Tasks from paused, completed, or archived projects cannot be planned.");
     }
+    if (task.task.kind === "routine" && options.sourceType !== "routine") {
+      throw new ValidationError(
+        "Routine tasks are added automatically on their scheduled weekday.",
+      );
+    }
 
-    const plan = await this.getOrCreatePlan(userId, input.date);
+    const plan = await this.getOrCreatePlan(userId, input.date, executor);
 
     // 2. Check for duplicate
-    const [existingItem] = await db
+    const [existingItem] = await executor
       .select()
       .from(dailyPlanItems)
       .where(and(eq(dailyPlanItems.dailyPlanId, plan.id), eq(dailyPlanItems.taskId, input.taskId)));
@@ -192,7 +215,7 @@ export class DailyPlanningService {
       (task.task.estimatedDurationSeconds > 0 ? task.task.estimatedDurationSeconds : 1800);
 
     // 4. Check daily capacity constraint (max 4 hours = 14,400 seconds)
-    const currentItems = await db
+    const currentItems = await executor
       .select({ plannedDurationSeconds: dailyPlanItems.plannedDurationSeconds })
       .from(dailyPlanItems)
       .where(and(eq(dailyPlanItems.dailyPlanId, plan.id), eq(dailyPlanItems.userId, userId)));
@@ -206,12 +229,14 @@ export class DailyPlanningService {
       );
     }
 
-    const [created] = await db
+    const [created] = await executor
       .insert(dailyPlanItems)
       .values({
         dailyPlanId: plan.id,
         userId,
         taskId: input.taskId,
+        sourceType: options.sourceType ?? "manual",
+        routineOccurrenceId: options.routineOccurrenceId ?? null,
         plannedDurationSeconds: plannedSeconds,
         status: "planned",
         sortOrder: currentItems.length,
@@ -269,6 +294,27 @@ export class DailyPlanningService {
       .where(and(eq(dailyPlanItems.id, itemId), eq(dailyPlanItems.userId, userId)))
       .returning();
 
+    if (existing.routineOccurrenceId && input.status) {
+      await db
+        .update(routineOccurrences)
+        .set({
+          status:
+            input.status === "completed"
+              ? "completed"
+              : input.status === "deferred"
+                ? "skipped"
+                : "planned",
+          completedAt: input.status === "completed" ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(routineOccurrences.id, existing.routineOccurrenceId),
+            eq(routineOccurrences.userId, userId),
+          ),
+        );
+    }
+
     return updated;
   }
 
@@ -276,6 +322,27 @@ export class DailyPlanningService {
    * Remove a task from the daily plan.
    */
   static async removePlanItem(userId: string, itemId: string) {
+    const [existing] = await db
+      .select()
+      .from(dailyPlanItems)
+      .where(and(eq(dailyPlanItems.id, itemId), eq(dailyPlanItems.userId, userId)));
+
+    if (!existing) {
+      throw new NotFoundError("Daily plan item", itemId);
+    }
+
+    if (existing.routineOccurrenceId) {
+      await db
+        .update(routineOccurrences)
+        .set({ status: "skipped", updatedAt: new Date() })
+        .where(
+          and(
+            eq(routineOccurrences.id, existing.routineOccurrenceId),
+            eq(routineOccurrences.userId, userId),
+          ),
+        );
+    }
+
     const [deleted] = await db
       .delete(dailyPlanItems)
       .where(and(eq(dailyPlanItems.id, itemId), eq(dailyPlanItems.userId, userId)))

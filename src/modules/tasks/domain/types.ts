@@ -1,5 +1,6 @@
 export type TaskStatus = "todo" | "in_progress" | "completed" | "cancelled";
 export type TaskPriority = "low" | "medium" | "high";
+export type TaskKind = "one_off" | "routine";
 
 export interface Task {
   id: string;
@@ -7,6 +8,7 @@ export interface Task {
   projectId: string;
   parentTaskId: string | null;
   title: string;
+  kind: TaskKind;
   description: string | null;
   estimatedDurationSeconds: number;
   status: TaskStatus;

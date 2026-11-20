@@ -21,6 +21,7 @@ export class TimeTrackingService {
         "Only tasks in today's daily plan can be tracked. Add the task to Today's Plan first.",
       );
     }
+    return item;
   }
 
   /**
@@ -120,7 +121,7 @@ export class TimeTrackingService {
     if (task.status === "completed" || task.status === "cancelled") {
       throw new ValidationError("Completed or cancelled tasks cannot be tracked.");
     }
-    await this.assertTaskIsInTodayPlan(userId, input.taskId);
+    const planItem = await this.assertTaskIsInTodayPlan(userId, input.taskId);
 
     // 2. Prevent multiple simultaneous active timers
     const active = await this.getActiveTimer(userId);
@@ -136,6 +137,7 @@ export class TimeTrackingService {
       .values({
         userId,
         taskId: input.taskId,
+        routineOccurrenceId: planItem.routineOccurrenceId,
         startTime: now,
         endTime: null,
         durationSeconds: 0,
@@ -219,7 +221,7 @@ export class TimeTrackingService {
     if (task.status === "completed" || task.status === "cancelled") {
       throw new ValidationError("Completed or cancelled tasks cannot be tracked.");
     }
-    await this.assertTaskIsInTodayPlan(userId, input.taskId);
+    const planItem = await this.assertTaskIsInTodayPlan(userId, input.taskId);
 
     const now = new Date();
     const startTime = new Date(now.getTime() - input.durationSeconds * 1000);
@@ -229,6 +231,7 @@ export class TimeTrackingService {
       .values({
         userId,
         taskId: input.taskId,
+        routineOccurrenceId: planItem.routineOccurrenceId,
         startTime,
         endTime: now,
         durationSeconds: input.durationSeconds,

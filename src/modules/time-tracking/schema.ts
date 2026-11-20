@@ -1,6 +1,7 @@
 import { pgTable, text, timestamp, uuid, integer, boolean, index } from "drizzle-orm/pg-core";
 import { user } from "../auth/schema";
 import { tasks } from "../tasks/schema";
+import { routineOccurrences } from "../routines/schema";
 
 export const timeSessions = pgTable(
   "time_sessions",
@@ -12,6 +13,10 @@ export const timeSessions = pgTable(
     taskId: uuid("task_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
+    routineOccurrenceId: uuid("routine_occurrence_id").references(
+      () => routineOccurrences.id,
+      { onDelete: "set null" },
+    ),
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
     endTime: timestamp("end_time", { withTimezone: true }),
     durationSeconds: integer("duration_seconds").notNull().default(0),

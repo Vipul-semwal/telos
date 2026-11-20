@@ -16,6 +16,7 @@ export const tasks = pgTable(
       onDelete: "cascade",
     }),
     title: varchar("title", { length: 255 }).notNull(),
+    kind: varchar("kind", { length: 20 }).notNull().default("one_off"), // one_off | routine
     description: text("description"),
     estimatedDurationSeconds: integer("estimated_duration_seconds").notNull().default(0),
     status: varchar("status", { length: 20 }).notNull().default("todo"), // todo | in_progress | completed | cancelled

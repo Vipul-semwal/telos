@@ -1,6 +1,7 @@
 import { pgTable, text, varchar, timestamp, uuid, integer, uniqueIndex, index } from "drizzle-orm/pg-core";
 import { user } from "../auth/schema";
 import { tasks } from "../tasks/schema";
+import { routineOccurrences } from "../routines/schema";
 
 export const dailyPlans = pgTable(
   "daily_plans",
@@ -31,6 +32,11 @@ export const dailyPlanItems = pgTable(
     taskId: uuid("task_id")
       .notNull()
       .references(() => tasks.id, { onDelete: "cascade" }),
+    sourceType: varchar("source_type", { length: 20 }).notNull().default("manual"),
+    routineOccurrenceId: uuid("routine_occurrence_id").references(
+      () => routineOccurrences.id,
+      { onDelete: "cascade" },
+    ),
     plannedDurationSeconds: integer("planned_duration_seconds").notNull().default(1800),
     status: varchar("status", { length: 20 }).notNull().default("planned"), // planned | in_progress | completed | deferred
     sortOrder: integer("sort_order").notNull().default(0),
@@ -39,6 +45,7 @@ export const dailyPlanItems = pgTable(
   },
   (table) => [
     uniqueIndex("daily_plan_items_plan_task_uniq").on(table.dailyPlanId, table.taskId),
+    uniqueIndex("daily_plan_items_routine_occurrence_uniq").on(table.routineOccurrenceId),
     index("daily_plan_items_user_status_idx").on(table.userId, table.status),
   ],
 );

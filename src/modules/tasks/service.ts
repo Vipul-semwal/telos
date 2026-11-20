@@ -101,6 +101,7 @@ export class TasksService {
         projectId: input.projectId,
         parentTaskId: input.parentTaskId ?? null,
         title: input.title,
+        kind: input.kind ?? "one_off",
         description: input.description ?? null,
         estimatedDurationSeconds: input.estimatedDurationSeconds ?? 0,
         status: "todo",
@@ -118,6 +119,7 @@ export class TasksService {
       eventType: "created",
       eventData: JSON.stringify({
         title: created.title,
+        kind: created.kind,
         estimatedDurationSeconds: created.estimatedDurationSeconds,
         priority: created.priority,
         isSubtask: Boolean(created.parentTaskId),

@@ -8,3 +8,4 @@ export * from "@/modules/time-tracking/schema";
 export * from "@/modules/task-yard/schema";
 export * from "@/modules/notifications/schema";
 export * from "@/modules/data-seed/schema";
+export * from "@/modules/routines/schema";

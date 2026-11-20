@@ -153,6 +153,7 @@ export class ProjectsService {
       .select({
         id: tasks.id,
         title: tasks.title,
+        kind: tasks.kind,
         status: tasks.status,
         estimatedDurationSeconds: tasks.estimatedDurationSeconds,
         priority: tasks.priority,
@@ -180,7 +181,9 @@ export class ProjectsService {
       disciplineTitle: discipline?.title ?? "Unknown Discipline",
       tasks: projectTasks,
       taskCount: projectTasks.length,
-      completedTaskCount: projectTasks.filter((t) => t.status === "completed").length,
+      completedTaskCount: projectTasks.filter(
+        (task) => task.kind !== "routine" && task.status === "completed",
+      ).length,
       totalDurationSeconds,
     };
   }

@@ -240,6 +240,7 @@ function TaskRow({
 }) {
   const [expanded, setExpanded] = React.useState(true);
   const hasSubtasks = task.subtasks.length > 0;
+  const isRoutine = task.kind === "routine";
   const completedSubtaskCount = task.subtasks.filter(
     (subtask) => subtask.status === "completed" || subtask.status === "cancelled",
   ).length;
@@ -252,7 +253,7 @@ function TaskRow({
           <StatusButton
             status={task.status as TaskStatus}
             onClick={() => onStatusCycle(task)}
-            disabled={isLoading}
+            disabled={isLoading || isRoutine}
           />
         </div>
 
@@ -269,6 +270,7 @@ function TaskRow({
             {task.allSubtasksCompleted && task.status !== "completed" && (
               <Badge variant="success">All subtasks done</Badge>
             )}
+            {isRoutine && <Badge variant="accent">Routine</Badge>}
           </div>
 
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-caption text-foreground-muted">
@@ -296,17 +298,19 @@ function TaskRow({
             <Badge variant={PRIORITY_BADGE[task.priority as TaskPriority]}>
               {PRIORITY_LABEL[task.priority as TaskPriority]}
             </Badge>
-            <Badge
-              variant={
-                task.status === "completed"
-                  ? "success"
-                  : task.status === "in_progress"
-                    ? "warning"
-                    : "neutral"
-              }
-            >
-              {STATUS_LABEL[task.status as TaskStatus]}
-            </Badge>
+            {!isRoutine && (
+              <Badge
+                variant={
+                  task.status === "completed"
+                    ? "success"
+                    : task.status === "in_progress"
+                      ? "warning"
+                      : "neutral"
+                }
+              >
+                {STATUS_LABEL[task.status as TaskStatus]}
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -329,15 +333,17 @@ function TaskRow({
           >
             <ArrowDown size={14} />
           </button>
-          <button
-            type="button"
-            onClick={() => onAddSubtask(task)}
-            disabled={isLoading}
-            aria-label="Add subtask"
-            className="grid h-7 w-7 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-hover hover:text-foreground-primary disabled:opacity-40"
-          >
-            <Plus size={14} />
-          </button>
+          {!isRoutine && (
+            <button
+              type="button"
+              onClick={() => onAddSubtask(task)}
+              disabled={isLoading}
+              aria-label="Add subtask"
+              className="grid h-7 w-7 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-surface-hover hover:text-foreground-primary disabled:opacity-40"
+            >
+              <Plus size={14} />
+            </button>
+          )}
           <Link
             href={`/tasks/${task.id}/yard`}
             aria-label={`Open Task Yard for ${task.title}`}
@@ -501,6 +507,7 @@ export function TaskList({ projectId, initialTasks = [] }: TaskListProps) {
   }, [fetchTasks]);
 
   const handleStatusCycle = async (task: Task) => {
+    if (task.kind === "routine") return;
     const nextStatus = STATUS_CYCLE[task.status as TaskStatus];
     setActionLoading(true);
     try {

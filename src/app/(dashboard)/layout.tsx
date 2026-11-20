@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getServerSession } from "@/infrastructure/authentication/session";
 import { AppShell } from "@/components/layout/app-shell";
+import { RoutineService } from "@/modules/routines/service";
 
 export default async function DashboardLayout({
   children,
@@ -12,6 +13,8 @@ export default async function DashboardLayout({
   if (!session || !session.user) {
     redirect("/login");
   }
+
+  await RoutineService.materializeForUser(session.user.id);
 
   const user = session.user as { name?: string; username?: string };
   const displayUsername = user.username || user.name || "Operator";

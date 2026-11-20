@@ -50,6 +50,13 @@
       "when": 1794912247920,
       "tag": "0006_handy_randall",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795165223761,
+      "tag": "0007_lonely_firestar",
+      "breakpoints": true
     }
   ]
 }

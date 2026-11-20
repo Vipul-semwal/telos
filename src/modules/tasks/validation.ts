@@ -5,11 +5,14 @@ export type TaskStatus = z.infer<typeof taskStatusEnum>;
 
 export const taskPriorityEnum = z.enum(["low", "medium", "high"]);
 export type TaskPriority = z.infer<typeof taskPriorityEnum>;
+export const taskKindEnum = z.enum(["one_off", "routine"]);
+export type TaskKind = z.infer<typeof taskKindEnum>;
 
 export const createTaskSchema = z.object({
   projectId: z.string().uuid("Invalid project ID"),
   parentTaskId: z.string().uuid("Invalid parent task ID").optional().nullable(),
   title: z.string().trim().min(1, "Title is required").max(255, "Title too long"),
+  kind: taskKindEnum.default("one_off"),
   description: z.string().trim().max(5000).optional().nullable(),
   estimatedDurationSeconds: z.number().int().min(0, "Estimated duration must be positive").default(0),
   priority: taskPriorityEnum.default("medium"),
@@ -48,6 +51,7 @@ export type CreateTaskInput = {
   projectId: string;
   parentTaskId?: string | null;
   title: string;
+  kind?: "one_off" | "routine";
   description?: string | null;
   estimatedDurationSeconds?: number;
   priority?: "low" | "medium" | "high";

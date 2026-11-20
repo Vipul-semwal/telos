@@ -11,6 +11,7 @@ import {
   CheckSquare,
   Compass,
   FolderSimple,
+  Repeat,
   SquaresFour,
   Timer,
 } from "@phosphor-icons/react";
@@ -19,6 +20,7 @@ import { cn } from "@/shared/utils/cn";
 export const navigationItems = [
   { href: "/", label: "Cockpit", icon: SquaresFour },
   { href: "/daily-planning", label: "Today's plan", icon: CalendarDots },
+  { href: "/routines", label: "Routines", icon: Repeat },
   { href: "/disciplines", label: "Disciplines", icon: Compass },
   { href: "/projects", label: "Projects", icon: FolderSimple },
   { href: "/tasks", label: "Tasks", icon: CheckSquare },
