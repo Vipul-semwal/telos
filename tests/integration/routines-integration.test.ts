@@ -5,6 +5,7 @@ import { user } from "@/modules/auth/schema";
 import { disciplines } from "@/modules/disciplines/schema";
 import { projects } from "@/modules/projects/schema";
 import { tasks } from "@/modules/tasks/schema";
+import { timeSessions } from "@/modules/time-tracking/schema";
 import {
   routineOccurrences,
   routineVariants,
@@ -17,6 +18,7 @@ import {
 } from "@/modules/daily-planning/schema";
 import { DailyPlanningService } from "@/modules/daily-planning/service";
 import { ValidationError } from "@/shared/errors/domain-error";
+import { ReportingService } from "@/modules/reporting/service";
 
 const SUFFIX = `${Date.now()}_${Math.floor(Math.random() * 1_000_000)}`;
 const USER_ID = `routine-user-${SUFFIX}`;
@@ -135,6 +137,43 @@ describe("weekday routine integration", () => {
       .from(routineOccurrences)
       .where(eq(routineOccurrences.routineId, routine.id));
     expect(occurrences).toHaveLength(2);
+
+    const monday = occurrences.find((occurrence) => occurrence.localDate === "2026-11-16")!;
+    const tuesday = occurrences.find((occurrence) => occurrence.localDate === "2026-11-17")!;
+    await db.insert(timeSessions).values([
+      {
+        userId: USER_ID,
+        taskId: monday.taskId,
+        routineOccurrenceId: monday.id,
+        startTime: new Date("2026-11-16T08:00:00.000Z"),
+        endTime: new Date("2026-11-16T08:30:00.000Z"),
+        durationSeconds: 1800,
+      },
+      {
+        userId: USER_ID,
+        taskId: tuesday.taskId,
+        routineOccurrenceId: tuesday.id,
+        startTime: new Date("2026-11-17T08:00:00.000Z"),
+        endTime: new Date("2026-11-17T08:10:00.000Z"),
+        durationSeconds: 600,
+      },
+    ]);
+
+    const report = await RoutineService.getReport(USER_ID, routine.id);
+    expect(report).not.toBeNull();
+    expect(report!.totals.totalActualSeconds).toBe(2400);
+    expect(report!.totals.totalPlannedSeconds).toBe(5400);
+    expect(report!.totals.completedCount).toBe(1);
+    expect(report!.totals.missedCount).toBe(1);
+    expect(report!.occurrences[0].localDate).toBe("2026-11-17");
+    expect(report!.occurrences[0].actualDurationSeconds).toBe(600);
+    expect(report!.occurrences[1].actualDurationSeconds).toBe(1800);
+
+    const overview = await ReportingService.getOverviewReport(USER_ID);
+    expect(overview.totals.taskCount).toBe(0);
+    expect(overview.totals.trackedSeconds).toBe(2400);
+    expect(overview.projectBreakdown[0].taskCount).toBe(0);
+    expect(overview.projectBreakdown[0].trackedSeconds).toBe(2400);
   });
 
   it("pauses routines without creating future occurrences", async () => {

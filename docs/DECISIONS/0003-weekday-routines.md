@@ -14,6 +14,8 @@ Recurring commitments such as exercise are not one-off tasks. A routine may use 
 - Completing, deferring, or removing the plan item updates the occurrence lifecycle.
 - Routine tasks cannot be manually planned; their schedule controls when they appear.
 - Time sessions link to the routine occurrence when tracking a recurring commitment.
+- Routine reports aggregate actual time by occurrence and show date, weekday, exercise, planned time, actual time, status, and session count.
+- One-off completion and ETA-overrun metrics exclude routine tasks while routine time still rolls up into project and discipline totals.
 
 ## Consequences
 

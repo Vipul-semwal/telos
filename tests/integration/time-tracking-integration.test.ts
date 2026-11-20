@@ -7,6 +7,8 @@ import { tasks, taskHistory } from "@/modules/tasks/schema";
 import { timeSessions } from "@/modules/time-tracking/schema";
 import { TimeTrackingService } from "@/modules/time-tracking/service";
 import { dailyPlans, dailyPlanItems } from "@/modules/daily-planning/schema";
+import { routineVariants } from "@/modules/routines/schema";
+import { RoutineService } from "@/modules/routines/service";
 import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/domain-error";
 import { getTodayDateString } from "@/shared/utils/date";
 import { and, inArray, eq } from "drizzle-orm";
@@ -236,6 +238,50 @@ describe("TimeTrackingService Integration", () => {
     await expect(
       TimeTrackingService.startTimer(USER_A_ID, { taskId: taskAId }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it("resets active-timer ETA to the current routine occurrence", async () => {
+    const [taskProject] = await db
+      .select({ projectId: tasks.projectId })
+      .from(tasks)
+      .where(eq(tasks.id, taskAId));
+    const today = getTodayDateString();
+    const day = new Date(`${today}T00:00:00.000Z`).getUTCDay();
+    const weekday = day === 0 ? 7 : day;
+
+    const routine = await RoutineService.create(USER_A_ID, {
+      projectId: taskProject.projectId,
+      title: "Current day routine",
+      startDate: today,
+      variants: [
+        {
+          weekday,
+          title: "Routine reset task",
+          plannedDurationSeconds: 2700,
+        },
+      ],
+    });
+    const [variant] = await db
+      .select()
+      .from(routineVariants)
+      .where(eq(routineVariants.routineId, routine.id));
+
+    await RoutineService.materializeForUser(USER_A_ID, new Date());
+    await TimeTrackingService.startTimer(USER_A_ID, { taskId: variant.taskId });
+    await TimeTrackingService.stopTimer(USER_A_ID);
+
+    await db.insert(timeSessions).values({
+      userId: USER_A_ID,
+      taskId: variant.taskId,
+      startTime: new Date(Date.now() - 3_600_000),
+      endTime: new Date(Date.now() - 2_700_000),
+      durationSeconds: 900,
+    });
+
+    await TimeTrackingService.startTimer(USER_A_ID, { taskId: variant.taskId });
+    const active = await TimeTrackingService.getActiveTimer(USER_A_ID);
+    expect(active?.estimatedDurationSeconds).toBe(2700);
+    expect(active?.totalRecordedSeconds).toBeLessThan(5);
   });
 
   it("prevents cross-tenant timer control", async () => {

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clock, Pause, Play, Plus, Repeat } from "@phosphor-icons/react";
+import { ChartLine, Clock, Pause, Play, Plus, Repeat } from "@phosphor-icons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -179,20 +180,29 @@ export function RoutineView({
                 <p className="text-caption text-foreground-muted">
                   {routine.variants.length} day{routine.variants.length === 1 ? "" : "s"} per week
                 </p>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busyId === routine.id || routine.status === "archived"}
-                  onClick={() =>
-                    updateStatus(
-                      routine,
-                      routine.status === "active" ? "paused" : "active",
-                    )
-                  }
-                >
-                  {routine.status === "active" ? <Pause size={14} /> : <Play size={14} />}
-                  {routine.status === "active" ? "Pause" : "Resume"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Link
+                    href={`/routines/${routine.id}/report`}
+                    className="inline-flex h-9 items-center gap-2 rounded border border-separator/15 bg-transparent px-3 text-small font-medium text-foreground-primary transition-colors hover:bg-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                  >
+                    <ChartLine size={14} />
+                    Report
+                  </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={busyId === routine.id || routine.status === "archived"}
+                    onClick={() =>
+                      updateStatus(
+                        routine,
+                        routine.status === "active" ? "paused" : "active",
+                      )
+                    }
+                  >
+                    {routine.status === "active" ? <Pause size={14} /> : <Play size={14} />}
+                    {routine.status === "active" ? "Pause" : "Resume"}
+                  </Button>
+                </div>
               </div>
             </Card>
           ))}

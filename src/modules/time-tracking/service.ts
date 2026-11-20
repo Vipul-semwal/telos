@@ -1,6 +1,7 @@
 import { db } from "@/infrastructure/database";
 import { timeSessions } from "./schema";
 import { tasks, taskHistory } from "../tasks/schema";
+import { routineOccurrences } from "../routines/schema";
 import { eq, and, isNull, isNotNull, sum, count, desc } from "drizzle-orm";
 import { ConflictError, NotFoundError, ValidationError } from "@/shared/errors/domain-error";
 import { calculateEtaStatus } from "@/shared/utils/duration";
@@ -32,6 +33,7 @@ export class TimeTrackingService {
       .select({
         id: timeSessions.id,
         taskId: timeSessions.taskId,
+        routineOccurrenceId: timeSessions.routineOccurrenceId,
         startTime: timeSessions.startTime,
         taskTitle: tasks.title,
         estimatedDurationSeconds: tasks.estimatedDurationSeconds,
@@ -43,19 +45,36 @@ export class TimeTrackingService {
     if (!active) return null;
 
     const [recorded] = await db
-      .select({
-        total: sum(timeSessions.durationSeconds),
-      })
+      .select({ total: sum(timeSessions.durationSeconds) })
       .from(timeSessions)
       .where(
-        and(
-          eq(timeSessions.userId, userId),
-          eq(timeSessions.taskId, active.taskId),
-        ),
+        active.routineOccurrenceId
+          ? and(
+              eq(timeSessions.userId, userId),
+              eq(timeSessions.routineOccurrenceId, active.routineOccurrenceId),
+            )
+          : and(
+              eq(timeSessions.userId, userId),
+              eq(timeSessions.taskId, active.taskId),
+            ),
       );
+
+    const [occurrence] = active.routineOccurrenceId
+      ? await db
+          .select({ plannedDurationSeconds: routineOccurrences.plannedDurationSeconds })
+          .from(routineOccurrences)
+          .where(
+            and(
+              eq(routineOccurrences.id, active.routineOccurrenceId),
+              eq(routineOccurrences.userId, userId),
+            ),
+          )
+      : [];
 
     return {
       ...active,
+      estimatedDurationSeconds:
+        occurrence?.plannedDurationSeconds ?? active.estimatedDurationSeconds,
       totalRecordedSeconds: Number(recorded?.total ?? 0),
     };
   }

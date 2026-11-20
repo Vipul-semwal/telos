@@ -29,8 +29,9 @@ export class ReportingService {
       );
     }
 
-    const completedTaskCount = userTasks.filter((t) => t.status === "completed").length;
-    const openTaskCount = userTasks.filter(
+    const oneOffTasks = userTasks.filter((task) => task.kind !== "routine");
+    const completedTaskCount = oneOffTasks.filter((t) => t.status === "completed").length;
+    const openTaskCount = oneOffTasks.filter(
       (t) => t.status !== "completed" && t.status !== "cancelled",
     ).length;
 
@@ -38,6 +39,9 @@ export class ReportingService {
       const disciplineProjects = userProjects.filter((p) => p.disciplineId === d.id);
       const projectIds = new Set(disciplineProjects.map((p) => p.id));
       const disciplineTasks = userTasks.filter((t) => projectIds.has(t.projectId));
+      const disciplineOneOffTasks = disciplineTasks.filter(
+        (task) => task.kind !== "routine",
+      );
       const trackedSeconds = disciplineTasks.reduce(
         (acc, t) => acc + (secondsByTask.get(t.id) ?? 0),
         0,
@@ -49,8 +53,10 @@ export class ReportingService {
         status: d.status,
         projectCount: disciplineProjects.length,
         activeProjectCount: disciplineProjects.filter((p) => p.status === "active").length,
-        taskCount: disciplineTasks.length,
-        completedTaskCount: disciplineTasks.filter((t) => t.status === "completed").length,
+        taskCount: disciplineOneOffTasks.length,
+        completedTaskCount: disciplineOneOffTasks.filter(
+          (t) => t.status === "completed",
+        ).length,
         trackedSeconds,
       };
     });
@@ -58,11 +64,14 @@ export class ReportingService {
     const projectBreakdown = userProjects
       .map((p) => {
         const projectTasks = userTasks.filter((t) => t.projectId === p.id);
+        const projectOneOffTasks = projectTasks.filter(
+          (task) => task.kind !== "routine",
+        );
         const trackedSeconds = projectTasks.reduce(
           (acc, t) => acc + (secondsByTask.get(t.id) ?? 0),
           0,
         );
-        const estimatedSeconds = projectTasks.reduce(
+        const estimatedSeconds = projectOneOffTasks.reduce(
           (acc, t) => acc + t.estimatedDurationSeconds,
           0,
         );
@@ -72,8 +81,10 @@ export class ReportingService {
           title: p.title,
           status: p.status,
           disciplineTitle: disciplineBreakdown.find((d) => d.id === p.disciplineId)?.title ?? "—",
-          taskCount: projectTasks.length,
-          completedTaskCount: projectTasks.filter((t) => t.status === "completed").length,
+          taskCount: projectOneOffTasks.length,
+          completedTaskCount: projectOneOffTasks.filter(
+            (t) => t.status === "completed",
+          ).length,
           trackedSeconds,
           estimatedSeconds,
         };
@@ -97,7 +108,7 @@ export class ReportingService {
       trackedSeconds,
     }));
 
-    const overtimeTaskCount = userTasks.filter((t) => {
+    const overtimeTaskCount = oneOffTasks.filter((t) => {
       if (t.estimatedDurationSeconds <= 0) return false;
       return (secondsByTask.get(t.id) ?? 0) > t.estimatedDurationSeconds;
     }).length;
@@ -106,7 +117,7 @@ export class ReportingService {
       totals: {
         trackedSeconds: totalTrackedSeconds,
         sessionCount: userSessions.length,
-        taskCount: userTasks.length,
+        taskCount: oneOffTasks.length,
         completedTaskCount,
         openTaskCount,
         overtimeTaskCount,
@@ -136,6 +147,7 @@ export class ReportingService {
       .select({
         id: tasks.id,
         title: tasks.title,
+        kind: tasks.kind,
         status: tasks.status,
         estimatedDurationSeconds: tasks.estimatedDurationSeconds,
       })
@@ -143,6 +155,7 @@ export class ReportingService {
       .where(and(eq(tasks.projectId, projectId), eq(tasks.userId, userId)));
 
     const taskIds = projectTasks.map((t) => t.id);
+    const oneOffTasks = projectTasks.filter((task) => task.kind !== "routine");
 
     let totalDurationSeconds = 0;
     let sessionCount = 0;
@@ -163,14 +176,17 @@ export class ReportingService {
       sessionCount = Number(sessionResult[0]?.sessionCount ?? 0);
     }
 
-    const totalEstimatedSeconds = projectTasks.reduce((acc, t) => acc + t.estimatedDurationSeconds, 0);
+    const totalEstimatedSeconds = oneOffTasks.reduce(
+      (acc, t) => acc + t.estimatedDurationSeconds,
+      0,
+    );
 
     return {
       projectId: project.id,
       title: project.title,
       status: project.status,
-      taskCount: projectTasks.length,
-      completedTaskCount: projectTasks.filter((t) => t.status === "completed").length,
+      taskCount: oneOffTasks.length,
+      completedTaskCount: oneOffTasks.filter((t) => t.status === "completed").length,
       totalDurationSeconds,
       totalEstimatedSeconds,
       varianceSeconds: totalDurationSeconds - totalEstimatedSeconds,
