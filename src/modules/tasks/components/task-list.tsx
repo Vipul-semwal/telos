@@ -200,9 +200,12 @@ function SubtaskRow({
       {!isDone && (
         <div className="flex shrink-0 items-center">
           {isPlannedToday ? (
-            <span className="inline-flex items-center gap-1 rounded-md bg-status-success/10 px-2 py-1 font-mono text-micro text-status-success">
+            <span
+              title="In Today's Plan"
+              className="inline-flex items-center gap-1 rounded-md bg-status-success/10 px-1.5 py-0.5 font-mono text-micro text-status-success"
+            >
               <CalendarCheck size={12} weight="fill" />
-              Today
+              Planned
             </span>
           ) : (
             <button
@@ -211,10 +214,13 @@ function SubtaskRow({
               disabled={isLoading || isAddingToPlan}
               title="Add to Today's Plan"
               aria-label={`Add ${subtask.title} to Today's Plan`}
-              className="inline-flex h-7 items-center gap-1 rounded-md px-2 font-mono text-micro text-foreground-secondary transition-colors hover:bg-accent/10 hover:text-accent disabled:opacity-40"
+              className="grid h-7 w-7 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-accent/10 hover:text-accent disabled:opacity-40"
             >
-              <CalendarPlus size={13} />
-              <span>{isAddingToPlan ? "Adding…" : "Today"}</span>
+              {isAddingToPlan ? (
+                <CircleNotch size={13} className="animate-spin" />
+              ) : (
+                <CalendarPlus size={14} />
+              )}
             </button>
           )}
         </div>
@@ -355,9 +361,12 @@ function TaskRow({
         <div className="flex shrink-0 items-center gap-0.5">
           {!isDone && !isRoutine && (
             plannedTaskIds.has(task.id) ? (
-              <span className="mr-1 inline-flex items-center gap-1 rounded-md bg-status-success/10 px-2 py-1 font-mono text-micro text-status-success">
+              <span
+                title="In Today's Plan"
+                className="mr-1 inline-flex items-center gap-1 rounded-md bg-status-success/10 px-1.5 py-0.5 font-mono text-micro text-status-success"
+              >
                 <CalendarCheck size={12} weight="fill" />
-                Today
+                Planned
               </span>
             ) : (
               <button
@@ -366,10 +375,13 @@ function TaskRow({
                 disabled={isLoading || addingToPlanId === task.id}
                 title="Add to Today's Plan"
                 aria-label={`Add ${task.title} to Today's Plan`}
-                className="mr-1 inline-flex h-7 items-center gap-1 rounded-md bg-surface-raised/80 px-2 font-mono text-micro text-foreground-secondary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.09)] transition-colors hover:bg-accent/10 hover:text-accent disabled:opacity-40"
+                className="grid h-8 w-8 place-items-center rounded-md text-foreground-muted transition-colors hover:bg-accent/10 hover:text-accent disabled:opacity-40"
               >
-                <CalendarPlus size={13} />
-                <span>{addingToPlanId === task.id ? "Adding…" : "Today"}</span>
+                {addingToPlanId === task.id ? (
+                  <CircleNotch size={14} className="animate-spin" />
+                ) : (
+                  <CalendarPlus size={14} />
+                )}
               </button>
             )
           )}
