@@ -55,6 +55,8 @@ interface TrackingResponse {
   totals: { totalDurationSeconds: number; sessionCount: number };
 }
 
+const MAX_TIMER_SESSION_SECONDS = 45 * 60;
+
 export function TimeTrackingView({
   initialActiveTimer,
   initialSessions,
@@ -71,18 +73,7 @@ export function TimeTrackingView({
   const [isBusy, setIsBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [isManualOpen, setIsManualOpen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!activeTimer) {
-      setElapsedSeconds(0);
-      return;
-    }
-    const compute = () =>
-      Math.max(0, Math.floor((Date.now() - new Date(activeTimer.startTime).getTime()) / 1000));
-    setElapsedSeconds(compute());
-    const interval = setInterval(() => setElapsedSeconds(compute()), 1000);
-    return () => clearInterval(interval);
-  }, [activeTimer]);
+  const autoStoppingSessionRef = React.useRef<string | null>(null);
 
   const refresh = React.useCallback(async () => {
     const res = await fetch("/api/time-tracking");
@@ -94,6 +85,40 @@ export function TimeTrackingView({
     }
     router.refresh();
   }, [router]);
+
+  React.useEffect(() => {
+    if (!activeTimer) {
+      setElapsedSeconds(0);
+      autoStoppingSessionRef.current = null;
+      return;
+    }
+    const compute = () =>
+      Math.max(0, Math.floor((Date.now() - new Date(activeTimer.startTime).getTime()) / 1000));
+
+    const checkAndTick = () => {
+      const next = compute();
+      if (next >= MAX_TIMER_SESSION_SECONDS) {
+        setElapsedSeconds(MAX_TIMER_SESSION_SECONDS);
+        if (autoStoppingSessionRef.current !== activeTimer.id) {
+          autoStoppingSessionRef.current = activeTimer.id;
+          void (async () => {
+            try {
+              await fetch("/api/time-tracking/stop", { method: "POST" });
+            } finally {
+              toast("Timer auto-stopped after 45m. Review and restart if needed.", "info");
+              await refresh();
+            }
+          })();
+        }
+        return;
+      }
+      setElapsedSeconds(next);
+    };
+
+    checkAndTick();
+    const interval = setInterval(checkAndTick, 1000);
+    return () => clearInterval(interval);
+  }, [activeTimer, refresh, toast]);
 
   const handleStart = async () => {
     if (!selectedTaskId) {
@@ -168,7 +193,7 @@ export function TimeTrackingView({
                   Active session
                 </h2>
                 <p className="text-caption text-foreground-muted">
-                  One stopwatch, task-level only.
+                  One stopwatch, task-level only · Auto-stops after 45m.
                 </p>
               </div>
             </div>
@@ -197,7 +222,11 @@ export function TimeTrackingView({
                   {isBusy ? "Stopping…" : "Stop session"}
                 </Button>
                 <p className="text-caption text-foreground-muted">
-                  Stopping records the session and does not complete the task.
+                  Auto-stops in{" "}
+                  <span className="font-mono tabular-nums text-foreground-secondary">
+                    {formatSecondsToHuman(Math.max(0, MAX_TIMER_SESSION_SECONDS - elapsedSeconds))}
+                  </span>{" "}
+                  (45m limit). Stopping does not complete the task.
                 </p>
               </div>
             </div>

@@ -5,7 +5,7 @@ import { disciplines } from "@/modules/disciplines/schema";
 import { projects } from "@/modules/projects/schema";
 import { tasks, taskHistory } from "@/modules/tasks/schema";
 import { timeSessions } from "@/modules/time-tracking/schema";
-import { TimeTrackingService } from "@/modules/time-tracking/service";
+import { TimeTrackingService, MAX_TIMER_SESSION_SECONDS } from "@/modules/time-tracking/service";
 import { dailyPlans, dailyPlanItems } from "@/modules/daily-planning/schema";
 import { routineVariants } from "@/modules/routines/schema";
 import { RoutineService } from "@/modules/routines/service";
@@ -298,5 +298,46 @@ describe("TimeTrackingService Integration", () => {
 
     const activeForA = await TimeTrackingService.getActiveTimer(USER_A_ID);
     expect(activeForA).not.toBeNull();
+  });
+
+  it("auto-stops an active timer after 45 minutes even when ETA is 2+ hours", async () => {
+    await db
+      .update(tasks)
+      .set({ estimatedDurationSeconds: 7200 })
+      .where(eq(tasks.id, taskA2Id));
+
+    const started = await TimeTrackingService.startTimer(USER_A_ID, { taskId: taskA2Id });
+
+    // Simulate 90 minutes elapsed without stopping
+    const ninetyMinutesAgo = new Date(Date.now() - 90 * 60 * 1000);
+    await db
+      .update(timeSessions)
+      .set({ startTime: ninetyMinutesAgo })
+      .where(eq(timeSessions.id, started.id));
+
+    const active = await TimeTrackingService.getActiveTimer(USER_A_ID);
+    expect(active).toBeNull();
+
+    const [closed] = await db
+      .select()
+      .from(timeSessions)
+      .where(eq(timeSessions.id, started.id));
+    expect(closed.endTime).not.toBeNull();
+    expect(closed.durationSeconds).toBe(MAX_TIMER_SESSION_SECONDS);
+    expect(closed.notes).toContain("45m");
+  });
+
+  it("caps stopTimer duration at 45 minutes when stopped late", async () => {
+    const started = await TimeTrackingService.startTimer(USER_A_ID, { taskId: taskA2Id });
+
+    const sixtyMinutesAgo = new Date(Date.now() - 60 * 60 * 1000);
+    await db
+      .update(timeSessions)
+      .set({ startTime: sixtyMinutesAgo })
+      .where(eq(timeSessions.id, started.id));
+
+    const stopped = await TimeTrackingService.stopTimer(USER_A_ID);
+    expect(stopped.durationSeconds).toBe(MAX_TIMER_SESSION_SECONDS);
+    expect(stopped.autoStopped).toBe(true);
   });
 });

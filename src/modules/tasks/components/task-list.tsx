@@ -6,6 +6,8 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarBlank,
+  CalendarCheck,
+  CalendarPlus,
   CaretDown,
   CaretRight,
   Check,
@@ -25,6 +27,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/state-views";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/shared/utils/cn";
+import { getTodayDateString } from "@/shared/utils/date";
 import { CreateTaskDialog } from "./create-task-dialog";
 import { EditTaskDialog } from "./edit-task-dialog";
 import type { TaskWithSubtasks, Task } from "@/modules/tasks/domain/types";
@@ -153,12 +156,18 @@ function SubtaskRow({
   onStatusCycle,
   onEdit,
   onDelete,
+  onAddToTodayPlan,
+  isPlannedToday,
+  isAddingToPlan,
   isLoading,
 }: {
   subtask: Task;
   onStatusCycle: (task: Task) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onAddToTodayPlan: (task: Task) => void;
+  isPlannedToday: boolean;
+  isAddingToPlan: boolean;
   isLoading: boolean;
 }) {
   const isDone = subtask.status === "completed" || subtask.status === "cancelled";
@@ -187,6 +196,29 @@ function SubtaskRow({
           </span>
         )}
       </div>
+
+      {!isDone && (
+        <div className="flex shrink-0 items-center">
+          {isPlannedToday ? (
+            <span className="inline-flex items-center gap-1 rounded-md bg-status-success/10 px-2 py-1 font-mono text-micro text-status-success">
+              <CalendarCheck size={12} weight="fill" />
+              Today
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddToTodayPlan(subtask)}
+              disabled={isLoading || isAddingToPlan}
+              title="Add to Today's Plan"
+              aria-label={`Add ${subtask.title} to Today's Plan`}
+              className="inline-flex h-7 items-center gap-1 rounded-md px-2 font-mono text-micro text-foreground-secondary transition-colors hover:bg-accent/10 hover:text-accent disabled:opacity-40"
+            >
+              <CalendarPlus size={13} />
+              <span>{isAddingToPlan ? "Adding…" : "Today"}</span>
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex shrink-0 items-center gap-0.5 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
         <Link
@@ -223,6 +255,9 @@ function TaskRow({
   onEdit,
   onDelete,
   onAddSubtask,
+  onAddToTodayPlan,
+  plannedTaskIds,
+  addingToPlanId,
   onMove,
   canMoveUp,
   canMoveDown,
@@ -233,6 +268,9 @@ function TaskRow({
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onAddSubtask: (parentTask: Task) => void;
+  onAddToTodayPlan: (task: Task) => void;
+  plannedTaskIds: Set<string>;
+  addingToPlanId: string | null;
   onMove: (task: Task, direction: "up" | "down") => void;
   canMoveUp: boolean;
   canMoveDown: boolean;
@@ -315,6 +353,26 @@ function TaskRow({
         </div>
 
         <div className="flex shrink-0 items-center gap-0.5">
+          {!isDone && !isRoutine && (
+            plannedTaskIds.has(task.id) ? (
+              <span className="mr-1 inline-flex items-center gap-1 rounded-md bg-status-success/10 px-2 py-1 font-mono text-micro text-status-success">
+                <CalendarCheck size={12} weight="fill" />
+                Today
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onAddToTodayPlan(task)}
+                disabled={isLoading || addingToPlanId === task.id}
+                title="Add to Today's Plan"
+                aria-label={`Add ${task.title} to Today's Plan`}
+                className="mr-1 inline-flex h-7 items-center gap-1 rounded-md bg-surface-raised/80 px-2 font-mono text-micro text-foreground-secondary shadow-[inset_0_0_0_1px_rgb(var(--separator)/0.09)] transition-colors hover:bg-accent/10 hover:text-accent disabled:opacity-40"
+              >
+                <CalendarPlus size={13} />
+                <span>{addingToPlanId === task.id ? "Adding…" : "Today"}</span>
+              </button>
+            )
+          )}
           <button
             type="button"
             onClick={() => onMove(task, "up")}
@@ -389,6 +447,9 @@ function TaskRow({
               onStatusCycle={onStatusCycle}
               onEdit={onEdit}
               onDelete={onDelete}
+              onAddToTodayPlan={onAddToTodayPlan}
+              isPlannedToday={plannedTaskIds.has(subtask.id)}
+              isAddingToPlan={addingToPlanId === subtask.id}
               isLoading={isLoading}
             />
           ))}
@@ -462,9 +523,12 @@ interface TaskListProps {
 }
 
 export function TaskList({ projectId, initialTasks = [] }: TaskListProps) {
+  const { toast } = useToast();
   const [tasks, setTasks] = React.useState<TaskWithSubtasks[]>(initialTasks);
   const [isLoading, setIsLoading] = React.useState(false);
   const [actionLoading, setActionLoading] = React.useState(false);
+  const [plannedTaskIds, setPlannedTaskIds] = React.useState<Set<string>>(new Set());
+  const [addingToPlanId, setAddingToPlanId] = React.useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = React.useState<TaskStatus | "all">("all");
   const [priorityFilter, setPriorityFilter] = React.useState<TaskPriority | "all">("all");
@@ -502,9 +566,64 @@ export function TaskList({ projectId, initialTasks = [] }: TaskListProps) {
     }
   }, [projectId, statusFilter, priorityFilter, search]);
 
+  const fetchTodayPlan = React.useCallback(async () => {
+    try {
+      const res = await fetch(`/api/daily-planning?date=${getTodayDateString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        const ids = new Set<string>(
+          (data.items ?? []).map((item: { taskId: string }) => item.taskId),
+        );
+        setPlannedTaskIds(ids);
+      }
+    } catch {
+      // Non-critical lookup failure; action button still enforces server validation
+    }
+  }, []);
+
   React.useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
+
+  React.useEffect(() => {
+    fetchTodayPlan();
+  }, [fetchTodayPlan]);
+
+  const handleAddToTodayPlan = async (task: Task) => {
+    setAddingToPlanId(task.id);
+    try {
+      const res = await fetch("/api/daily-planning/items", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: getTodayDateString(),
+          taskId: task.id,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPlannedTaskIds((prev) => {
+          const next = new Set(prev);
+          next.add(task.id);
+          return next;
+        });
+        toast(`Added "${task.title}" to Today's Plan.`);
+      } else if (res.status === 409) {
+        setPlannedTaskIds((prev) => {
+          const next = new Set(prev);
+          next.add(task.id);
+          return next;
+        });
+        toast("Already in Today's Plan.", "info");
+      } else {
+        toast(data.error || "Failed to add to Today's Plan.", "error");
+      }
+    } catch {
+      toast("Failed to communicate with server.", "error");
+    } finally {
+      setAddingToPlanId(null);
+    }
+  };
 
   const handleStatusCycle = async (task: Task) => {
     if (task.kind === "routine") return;
@@ -694,6 +813,9 @@ export function TaskList({ projectId, initialTasks = [] }: TaskListProps) {
               onEdit={(selected) => setEditingTask(selected)}
               onDelete={(selected) => setDeletingTask(selected)}
               onAddSubtask={(parent) => setCreateSubtaskParent(parent)}
+              onAddToTodayPlan={handleAddToTodayPlan}
+              plannedTaskIds={plannedTaskIds}
+              addingToPlanId={addingToPlanId}
               onMove={handleMove}
               canMoveUp={index > 0}
               canMoveDown={index < displayedTasks.length - 1}

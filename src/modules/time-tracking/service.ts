@@ -9,7 +9,53 @@ import { getTodayDateString } from "@/shared/utils/date";
 import { DailyPlanningService } from "../daily-planning/service";
 import type { StartTimerInput, ManualSessionInput } from "./validation";
 
+export const MAX_TIMER_SESSION_SECONDS = 45 * 60; // 45 minutes
+
 export class TimeTrackingService {
+  private static async finalizeIfExpired(
+    userId: string,
+    active: { id: string; taskId: string; startTime: Date; notes: string | null },
+  ): Promise<boolean> {
+    const startMs = new Date(active.startTime).getTime();
+    const limitMs = MAX_TIMER_SESSION_SECONDS * 1000;
+    if (Date.now() - startMs < limitMs) {
+      return false;
+    }
+
+    const cappedEndTime = new Date(startMs + limitMs);
+    const updatedNotes = active.notes
+      ? `${active.notes} [Auto-stopped at 45m limit]`
+      : "Auto-stopped after 45m limit";
+
+    const [stopped] = await db
+      .update(timeSessions)
+      .set({
+        endTime: cappedEndTime,
+        durationSeconds: MAX_TIMER_SESSION_SECONDS,
+        notes: updatedNotes,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(timeSessions.id, active.id), isNull(timeSessions.endTime)))
+      .returning();
+
+    if (stopped) {
+      await db.insert(taskHistory).values({
+        userId,
+        taskId: active.taskId,
+        eventType: "session_stopped",
+        eventData: JSON.stringify({
+          sessionId: stopped.id,
+          durationSeconds: MAX_TIMER_SESSION_SECONDS,
+          stoppedAt: cappedEndTime.toISOString(),
+          autoStopped: true,
+          reason: "45_minute_limit",
+        }),
+      });
+    }
+
+    return true;
+  }
+
   private static async assertTaskIsInTodayPlan(userId: string, taskId: string) {
     const plan = await DailyPlanningService.getPlanWithItems(
       userId,
@@ -35,6 +81,7 @@ export class TimeTrackingService {
         taskId: timeSessions.taskId,
         routineOccurrenceId: timeSessions.routineOccurrenceId,
         startTime: timeSessions.startTime,
+        notes: timeSessions.notes,
         taskTitle: tasks.title,
         estimatedDurationSeconds: tasks.estimatedDurationSeconds,
       })
@@ -43,6 +90,10 @@ export class TimeTrackingService {
       .where(and(eq(timeSessions.userId, userId), isNull(timeSessions.endTime)));
 
     if (!active) return null;
+
+    if (await this.finalizeIfExpired(userId, active)) {
+      return null;
+    }
 
     const [recorded] = await db
       .select({ total: sum(timeSessions.durationSeconds) })
@@ -183,7 +234,9 @@ export class TimeTrackingService {
 
   /**
    * Stop an active timer.
-   * Enforces rule: Stopping DOES NOT complete the task.
+   * Enforces rules:
+   * 1. Stopping DOES NOT complete the task.
+   * 2. Maximum session duration is capped at 45 minutes (2,700 seconds).
    */
   static async stopTimer(userId: string) {
     const [active] = await db
@@ -196,20 +249,33 @@ export class TimeTrackingService {
     }
 
     const now = new Date();
-    const durationSeconds = Math.max(
-      1,
-      Math.floor((now.getTime() - new Date(active.startTime).getTime()) / 1000),
-    );
+    const startMs = new Date(active.startTime).getTime();
+    const rawDurationSeconds = Math.max(1, Math.floor((now.getTime() - startMs) / 1000));
+    const autoStopped = rawDurationSeconds >= MAX_TIMER_SESSION_SECONDS;
+    const durationSeconds = autoStopped ? MAX_TIMER_SESSION_SECONDS : rawDurationSeconds;
+    const endTime = autoStopped
+      ? new Date(startMs + MAX_TIMER_SESSION_SECONDS * 1000)
+      : now;
+    const notes = autoStopped
+      ? active.notes
+        ? `${active.notes} [Auto-stopped at 45m limit]`
+        : "Auto-stopped after 45m limit"
+      : active.notes;
 
     const [stopped] = await db
       .update(timeSessions)
       .set({
-        endTime: now,
+        endTime,
         durationSeconds,
+        notes,
         updatedAt: now,
       })
-      .where(eq(timeSessions.id, active.id))
+      .where(and(eq(timeSessions.id, active.id), isNull(timeSessions.endTime)))
       .returning();
+
+    if (!stopped) {
+      throw new NotFoundError("Active timer session");
+    }
 
     await db.insert(taskHistory).values({
       userId,
@@ -218,11 +284,13 @@ export class TimeTrackingService {
       eventData: JSON.stringify({
         sessionId: stopped.id,
         durationSeconds,
-        stoppedAt: now.toISOString(),
+        stoppedAt: endTime.toISOString(),
+        autoStopped,
+        ...(autoStopped ? { reason: "45_minute_limit" } : {}),
       }),
     });
 
-    return stopped;
+    return { ...stopped, autoStopped };
   }
 
   /**
